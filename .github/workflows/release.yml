@@ -1,0 +1,72 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Xcode 15
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.0'
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
+      - name: Build Universal Binary
+        run: |
+          xcodebuild -project HostsManager.xcodeproj \
+            -scheme HostsManager \
+            -configuration Release \
+            -derivedDataPath build \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" \
+            build
+
+      - name: Package ZIP
+        run: |
+          cd build/Build/Products/Release
+          zip -r HostsManager-${{ github.ref_name }}.zip HostsManager.app
+
+      - name: Calculate SHA256
+        id: sha
+        run: |
+          SHA=$(shasum -a 256 build/Build/Products/Release/HostsManager-${{ github.ref_name }}.zip | awk '{print $1}')
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+
+      - name: Create DMG
+        run: |
+          hdiutil create -volname "HostsManager" \
+            -srcfolder build/Build/Products/Release/HostsManager.app \
+            -ov -format UDZO \
+            build/HostsManager-${{ github.ref_name }}.dmg
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/Build/Products/Release/HostsManager-${{ github.ref_name }}.zip
+            build/HostsManager-${{ github.ref_name }}.dmg
+          body: |
+            ## HostsManager ${{ github.ref_name }}
+
+            ### SHA256
+            - ZIP: `${{ steps.sha.outputs.sha256 }}`
+
+            ### Cài đặt
+            ```bash
+            brew install twannguyenba-hash/hostsmanager/hostsmanager
+            ```
+            Hoặc tải file ZIP/DMG bên dưới.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
