@@ -253,16 +253,19 @@ class HostsFileManager: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async {
             var authRef: AuthorizationRef?
 
-            var authItem = AuthorizationItem(
-                name: kAuthorizationRightExecute,
-                valueLength: 0,
-                value: nil,
-                flags: 0
-            )
-            var authRights = AuthorizationRights(count: 1, items: &authItem)
-
-            let flags: AuthorizationFlags = [.interactionAllowed, .preAuthorize, .extendRights]
-            let status = AuthorizationCreate(&authRights, nil, flags, &authRef)
+            let status = kAuthorizationRightExecute.withCString { name in
+                var authItem = AuthorizationItem(
+                    name: name,
+                    valueLength: 0,
+                    value: nil,
+                    flags: 0
+                )
+                return withUnsafeMutablePointer(to: &authItem) { itemPtr in
+                    var authRights = AuthorizationRights(count: 1, items: itemPtr)
+                    let flags: AuthorizationFlags = [.interactionAllowed, .preAuthorize, .extendRights]
+                    return AuthorizationCreate(&authRights, nil, flags, &authRef)
+                }
+            }
 
             guard status == errAuthorizationSuccess, let auth = authRef else {
                 let cancelled = status == errAuthorizationCanceled
@@ -277,32 +280,33 @@ class HostsFileManager: ObservableObject {
             let shellPath = "/bin/sh"
             let args = ["-c", command]
 
-            // Use AuthorizationExecuteWithPrivileges to run command as root
-            let cArgs = args.map { strdup($0) } + [nil]
+            let cArgs: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
             defer { cArgs.forEach { if let p = $0 { free(p) } } }
 
             var outputFile: UnsafeMutablePointer<FILE>?
+
+            let cArgsMutable = UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>.allocate(capacity: cArgs.count)
+            defer { cArgsMutable.deallocate() }
+            for (i, arg) in cArgs.enumerated() {
+                cArgsMutable[i] = arg
+            }
+
             let execStatus = AuthorizationExecuteWithPrivileges(
                 auth,
                 shellPath,
                 [],
-                cArgs,
+                cArgsMutable,
                 &outputFile
             )
 
             if execStatus == errAuthorizationSuccess {
-                // Read output and wait for child process
                 if let file = outputFile {
-                    var output = ""
                     let bufSize = 4096
                     let buf = UnsafeMutablePointer<CChar>.allocate(capacity: bufSize)
                     defer { buf.deallocate() }
-                    while fgets(buf, Int32(bufSize), file) != nil {
-                        output += String(cString: buf)
-                    }
+                    while fgets(buf, Int32(bufSize), file) != nil {}
                     fclose(file)
 
-                    // Wait for child process to finish
                     var childStatus: Int32 = 0
                     wait(&childStatus)
                 }
