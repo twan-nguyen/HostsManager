@@ -247,7 +247,7 @@ struct SidebarView: View {
                     }
                 }
             }
-        }
+
             Section {
                 HStack {
                     Spacer()
