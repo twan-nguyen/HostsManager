@@ -1,5 +1,4 @@
 import Foundation
-import Security
 import SwiftUI
 
 struct HostEntry: Identifiable, Equatable {
@@ -249,65 +248,38 @@ class HostsFileManager: ObservableObject {
         }
     }
 
-    private nonisolated func executePrivileged(_ command: String) -> (success: Bool, error: String?) {
-        var authRef: AuthorizationRef?
-
-        let status = kAuthorizationRightExecute.withCString { name in
-            var authItem = AuthorizationItem(name: name, valueLength: 0, value: nil, flags: 0)
-            return withUnsafeMutablePointer(to: &authItem) { itemPtr in
-                var authRights = AuthorizationRights(count: 1, items: itemPtr)
-                return AuthorizationCreate(&authRights, nil, [.interactionAllowed, .preAuthorize, .extendRights], &authRef)
-            }
-        }
-
-        guard status == errAuthorizationSuccess, let auth = authRef else {
-            if status == errAuthorizationCanceled { return (false, nil) }
-            return (false, "Xác thực thất bại")
-        }
-        defer { AuthorizationFree(auth, []) }
-
-        let arg1 = strdup("-c")!
-        let arg2 = strdup(command)!
-        defer { free(arg1); free(arg2) }
-
-        var outputFile: UnsafeMutablePointer<FILE>?
-
-        let argsPtr = UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>.allocate(capacity: 3)
-        defer { argsPtr.deallocate() }
-        argsPtr[0] = arg1
-        argsPtr[1] = arg2
-        argsPtr[2] = nil
-
-        let execStatus = AuthorizationExecuteWithPrivileges(
-            auth,
-            "/bin/sh",
-            [],
-            UnsafePointer(argsPtr),
-            &outputFile
-        )
-
-        if execStatus == errAuthorizationSuccess {
-            if let file = outputFile {
-                let bufSize = 4096
-                let readBuf = UnsafeMutablePointer<CChar>.allocate(capacity: bufSize)
-                defer { readBuf.deallocate() }
-                while fgets(readBuf, Int32(bufSize), file) != nil {}
-                fclose(file)
-                var childStatus: Int32 = 0
-                wait(&childStatus)
-            }
-            return (true, nil)
-        }
-
-        if execStatus == errAuthorizationCanceled { return (false, nil) }
-        return (false, "Không thể thực thi lệnh với quyền admin")
-    }
-
     private func runPrivilegedCommand(_ command: String, completion: @escaping (Bool, String?) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = self?.executePrivileged(command) ?? (false, "Unexpected error")
-            DispatchQueue.main.async {
-                completion(result.success, result.error)
+        let script = "do shell script \"\(command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\" with administrator privileges"
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            process.arguments = ["-e", script]
+
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+
+                let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
+                let errorString = String(data: errorData, encoding: .utf8) ?? ""
+
+                DispatchQueue.main.async {
+                    if process.terminationStatus == 0 {
+                        completion(true, nil)
+                    } else if errorString.contains("-128") || process.terminationStatus == 1 {
+                        completion(false, nil) // User cancelled
+                    } else {
+                        completion(false, errorString)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(false, error.localizedDescription)
+                }
             }
         }
     }
