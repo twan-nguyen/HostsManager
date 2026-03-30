@@ -1,6 +1,6 @@
 cask "hostsmanager" do
   version "1.0.0"
-  sha256 "THAY_BANG_SHA256_THUC_TE"
+  sha256 "b0cbf1d149e222c9fe55c08fb5ca065f94fd342b7ff5e538dd78ce5d5fd6fbcd"
 
   url "https://github.com/twannguyenba-hash/HostsManager/releases/download/v#{version}/HostsManager-v#{version}.zip"
   name "HostsManager"
@@ -10,6 +10,11 @@ cask "hostsmanager" do
   depends_on macos: ">= :ventura"
 
   app "HostsManager.app"
+
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-cr", "#{appdir}/HostsManager.app"]
+  end
 
   zap trash: [
     "~/Library/Caches/com.hostsmanager.app",
