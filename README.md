@@ -55,27 +55,6 @@ open HostsManager.xcodeproj
 4. Nhấn "Áp dụng" để ghi thay đổi vào `/etc/hosts`
 5. Nhập mật khẩu admin khi được yêu cầu
 
-## Cấu trúc dự án
-
-```
-HostsManager/
-├── HostsManager/
-│   ├── HostsManagerApp.swift       # Entry point
-│   ├── HostsFileManager.swift      # Logic parse, CRUD, ghi file
-│   ├── ContentView.swift           # Toàn bộ UI
-│   └── Assets.xcassets/
-├── project.yml                     # XcodeGen config
-├── Makefile                        # Build targets
-├── setup.sh                        # Script build tự động
-├── scripts/                        # Release scripts
-├── homebrew/                       # Homebrew Cask formula
-└── .github/workflows/              # CI/CD
-```
-
-## Phát hành
-
-Xem [PUBLISHING.md](PUBLISHING.md) để biết cách đưa lên Homebrew.
-
 ## Giấy phép
 
 MIT
