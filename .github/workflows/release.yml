@@ -11,6 +11,8 @@ permissions:
 jobs:
   build:
     runs-on: macos-14
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
 
@@ -93,6 +95,7 @@ jobs:
             exit 0
           fi
 
+          rm -rf /tmp/homebrew-tap
           git clone https://x-access-token:${TAP_REPO_TOKEN}@github.com/twannguyenba-hash/homebrew-hostsmanager.git /tmp/homebrew-tap
           cd /tmp/homebrew-tap
 
