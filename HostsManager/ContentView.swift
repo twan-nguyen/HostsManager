@@ -117,27 +117,12 @@ class CommentToggleTextView: NSTextView {
     }
 }
 
-// MARK: - Preset Model
+// MARK: - Sidebar Selection
 
-struct PresetItem: Identifiable {
-    let id = UUID()
-    let name: String
-    let hostname: String
-    let ip: String
-    let icon: String
-    let category: String
+enum SidebarSelection: Hashable {
+    case filter(SidebarFilter)
+    case tag(String)
 }
-
-let presetItems: [PresetItem] = [
-    PresetItem(name: "Facebook", hostname: "facebook.com", ip: "0.0.0.0", icon: "hand.raised.fill", category: "Chặn"),
-    PresetItem(name: "Instagram", hostname: "instagram.com", ip: "0.0.0.0", icon: "hand.raised.fill", category: "Chặn"),
-    PresetItem(name: "X (Twitter)", hostname: "x.com", ip: "0.0.0.0", icon: "hand.raised.fill", category: "Chặn"),
-    PresetItem(name: "TikTok", hostname: "tiktok.com", ip: "0.0.0.0", icon: "hand.raised.fill", category: "Chặn"),
-    PresetItem(name: "YouTube", hostname: "youtube.com", ip: "0.0.0.0", icon: "hand.raised.fill", category: "Chặn"),
-    PresetItem(name: "Reddit", hostname: "reddit.com", ip: "0.0.0.0", icon: "hand.raised.fill", category: "Chặn"),
-    PresetItem(name: "myapp.local", hostname: "myapp.local", ip: "127.0.0.1", icon: "hammer.fill", category: "Dev"),
-    PresetItem(name: "api.local", hostname: "api.local", ip: "127.0.0.1", icon: "hammer.fill", category: "Dev"),
-]
 
 // MARK: - View Mode
 
@@ -150,7 +135,7 @@ enum ViewMode {
 
 struct ContentView: View {
     @EnvironmentObject var hostsManager: HostsFileManager
-    @State private var selectedFilter: SidebarFilter = .all
+    @State private var sidebarSelection: SidebarSelection? = .filter(.all)
     @State private var searchText = ""
     @State private var showAddSheet = false
     @State private var showImportSheet = false
@@ -159,35 +144,17 @@ struct ContentView: View {
     @State private var showDeleteConfirm = false
     @State private var viewMode: ViewMode = .table
     @State private var rawText = ""
-    @State private var selectedTag: String?
-    @State private var showCreateTagAlert = false
-    @State private var newTagName = ""
-    @State private var showRenameTagAlert = false
-    @State private var renameTagOldName = ""
-    @State private var renameTagNewName = ""
-    @State private var showDeleteTagConfirm = false
-    @State private var deleteTagTarget = ""
 
     var body: some View {
         NavigationSplitView {
             SidebarView(
-                selectedFilter: $selectedFilter,
-                selectedTag: $selectedTag,
-                hostsManager: hostsManager,
-                showCreateTagAlert: $showCreateTagAlert,
-                newTagName: $newTagName,
-                showRenameTagAlert: $showRenameTagAlert,
-                renameTagOldName: $renameTagOldName,
-                renameTagNewName: $renameTagNewName,
-                showDeleteTagConfirm: $showDeleteTagConfirm,
-                deleteTagTarget: $deleteTagTarget
+                selection: $sidebarSelection,
+                hostsManager: hostsManager
             )
         } detail: {
             ZStack {
                 if viewMode == .text {
                     rawTextEditorView
-                } else if selectedFilter == .presets {
-                    PresetsView(hostsManager: hostsManager)
                 } else {
                     entriesListView
                 }
@@ -204,7 +171,7 @@ struct ContentView: View {
                 }
             }
         }
-        .searchable(text: $searchText, prompt: "Tìm kiếm hostname, IP...")
+        .modifier(SearchableWithFocus(searchText: $searchText, isPresented: $hostsManager.isSearchFocused))
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Picker("Mode", selection: $viewMode) {
@@ -297,45 +264,6 @@ struct ContentView: View {
         } message: { entry in
             Text("Bạn có chắc muốn xóa entry \"\(entry.hostname)\"?")
         }
-        .alert("Tạo tag mới", isPresented: $showCreateTagAlert) {
-            TextField("Tên tag", text: $newTagName)
-            Button("Tạo") {
-                hostsManager.createTag(name: newTagName)
-                newTagName = ""
-            }
-            Button("Hủy", role: .cancel) {
-                newTagName = ""
-            }
-        }
-        .alert("Đổi tên tag", isPresented: $showRenameTagAlert) {
-            TextField("Tên mới", text: $renameTagNewName)
-            Button("Đổi tên") {
-                hostsManager.renameTag(oldName: renameTagOldName, newName: renameTagNewName)
-                if selectedTag == renameTagOldName {
-                    selectedTag = renameTagNewName
-                }
-                renameTagOldName = ""
-                renameTagNewName = ""
-            }
-            Button("Hủy", role: .cancel) {
-                renameTagOldName = ""
-                renameTagNewName = ""
-            }
-        }
-        .alert("Xác nhận xóa tag", isPresented: $showDeleteTagConfirm) {
-            Button("Xóa", role: .destructive) {
-                if selectedTag == deleteTagTarget {
-                    selectedTag = nil
-                }
-                hostsManager.deleteTag(name: deleteTagTarget)
-                deleteTagTarget = ""
-            }
-            Button("Hủy", role: .cancel) {
-                deleteTagTarget = ""
-            }
-        } message: {
-            Text("Xóa tag \"\(deleteTagTarget)\"? Các entry trong tag sẽ trở thành không có tag.")
-        }
     }
 
     private var rawTextEditorView: some View {
@@ -346,7 +274,7 @@ struct ContentView: View {
                 Spacer()
                 Text("\(rawText.components(separatedBy: "\n").count) dòng")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -361,18 +289,40 @@ struct ContentView: View {
         }
     }
 
+    private var currentFilter: SidebarFilter {
+        if case .filter(let f) = sidebarSelection { return f }
+        return .all
+    }
+
+    private var currentTag: String? {
+        if case .tag(let t) = sidebarSelection { return t }
+        return nil
+    }
+
     private var entriesListView: some View {
-        let filtered = hostsManager.filteredEntries(filter: selectedFilter, searchText: searchText, selectedTag: selectedTag)
+        let filtered = hostsManager.filteredEntries(filter: currentFilter, searchText: searchText, selectedTag: currentTag)
 
         return Group {
             if filtered.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary)
-                    Text("Không có entry nào")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
+                Group {
+                    if #available(macOS 14.0, *) {
+                        ContentUnavailableView {
+                            Label("Không có entry nào", systemImage: "doc.text.magnifyingglass")
+                        } description: {
+                            if !searchText.isEmpty {
+                                Text("Thử tìm kiếm với từ khóa khác")
+                            }
+                        }
+                    } else {
+                        VStack(spacing: 12) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 48))
+                                .foregroundStyle(.secondary)
+                            Text("Không có entry nào")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -384,14 +334,20 @@ struct ContentView: View {
                         ))
                         .toggleStyle(.switch)
                         .controlSize(.small)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .contentShape(Rectangle())
+                        .contextMenu { entryContextMenu(entry: entry) }
                     }
                     .width(50)
 
                     TableColumn("IP") { entry in
                         Text(entry.ip)
                             .font(.system(.body, design: .monospaced))
-                            .foregroundColor(entry.ip == "0.0.0.0" ? .red : .green)
+                            .foregroundStyle(entry.ip == "0.0.0.0" ? Color.red : Color.green)
                             .opacity(entry.isEnabled ? 1.0 : 0.5)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .contextMenu { entryContextMenu(entry: entry) }
                     }
                     .width(min: 100, ideal: 140)
 
@@ -399,29 +355,40 @@ struct ContentView: View {
                         Text(entry.hostname)
                             .font(.system(.body, design: .monospaced))
                             .opacity(entry.isEnabled ? 1.0 : 0.5)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .contextMenu { entryContextMenu(entry: entry) }
                     }
                     .width(min: 150, ideal: 250)
 
                     TableColumn("Comment") { entry in
                         Text(entry.comment)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .opacity(entry.isEnabled ? 1.0 : 0.5)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .contextMenu { entryContextMenu(entry: entry) }
                     }
                     .width(min: 80, ideal: 150)
 
                     TableColumn("Tag") { entry in
-                        if let tag = entry.tag {
-                            Text(tag)
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.accentColor.opacity(0.15))
-                                .cornerRadius(4)
-                        } else {
-                            Text("—")
-                                .foregroundColor(.secondary)
-                                .opacity(0.5)
+                        Group {
+                            if let tag = entry.tag {
+                                Text(tag)
+                                    .font(.caption)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.accentColor.opacity(0.15))
+                                    .clipShape(.rect(cornerRadius: 4))
+                            } else {
+                                Text("—")
+                                    .foregroundStyle(.secondary)
+                                    .opacity(0.5)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .contextMenu { entryContextMenu(entry: entry) }
                     }
                     .width(min: 60, ideal: 100)
 
@@ -439,15 +406,83 @@ struct ContentView: View {
                                 showDeleteConfirm = true
                             } label: {
                                 Image(systemName: "trash")
-                                    .foregroundColor(.red)
+                                    .foregroundStyle(.red)
                             }
                             .buttonStyle(.borderless)
                         }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .contentShape(Rectangle())
+                        .contextMenu { entryContextMenu(entry: entry) }
                     }
                     .width(60)
                 }
-                .modifier(AlternatingRowsModifier())
+                .tableStyle(.bordered(alternatesRowBackgrounds: true))
             }
+        }
+    }
+
+    @ViewBuilder
+    private func entryContextMenu(entry: HostEntry) -> some View {
+        Button {
+            editingEntry = entry
+        } label: {
+            Label("Sửa", systemImage: "pencil")
+        }
+
+        Button {
+            hostsManager.toggleEntry(id: entry.id)
+        } label: {
+            Label(entry.isEnabled ? "Tắt" : "Bật", systemImage: entry.isEnabled ? "pause.circle" : "play.circle")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            deleteTarget = entry
+            showDeleteConfirm = true
+        } label: {
+            Label("Xóa", systemImage: "trash")
+        }
+    }
+}
+
+// MARK: - Tag Toggle Button
+
+struct TagToggleButton: View {
+    let state: HostsFileManager.TagState
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .font(.system(size: 14))
+        }
+        .buttonStyle(.plain)
+        .help(tooltip)
+    }
+
+    private var icon: String {
+        switch state {
+        case .allEnabled: return "checkmark.circle.fill"
+        case .allDisabled: return "circle"
+        case .mixed: return "minus.circle.fill"
+        }
+    }
+
+    private var color: Color {
+        switch state {
+        case .allEnabled: return .green
+        case .allDisabled: return .secondary
+        case .mixed: return .orange
+        }
+    }
+
+    private var tooltip: String {
+        switch state {
+        case .allEnabled: return "Tất cả đang bật — nhấn để tắt"
+        case .allDisabled: return "Tất cả đang tắt — nhấn để bật"
+        case .mixed: return "Một số đang bật — nhấn để tắt tất cả"
         }
     }
 }
@@ -455,72 +490,57 @@ struct ContentView: View {
 // MARK: - Sidebar
 
 struct SidebarView: View {
-    @Binding var selectedFilter: SidebarFilter
-    @Binding var selectedTag: String?
+    @Binding var selection: SidebarSelection?
     @ObservedObject var hostsManager: HostsFileManager
-    @Binding var showCreateTagAlert: Bool
-    @Binding var newTagName: String
-    @Binding var showRenameTagAlert: Bool
-    @Binding var renameTagOldName: String
-    @Binding var renameTagNewName: String
-    @Binding var showDeleteTagConfirm: Bool
-    @Binding var deleteTagTarget: String
+
+    @State private var showCreateTagAlert = false
+    @State private var newTagName = ""
+    @State private var showRenameTagAlert = false
+    @State private var renameTagOldName = ""
+    @State private var renameTagNewName = ""
+    @State private var showDeleteTagConfirm = false
+    @State private var deleteTagTarget = ""
 
     var body: some View {
-        List {
+        List(selection: $selection) {
             Section("Bộ lọc") {
-                ForEach(SidebarFilter.allCases.filter { $0 != .presets }) { filter in
-                    Button {
-                        selectedFilter = filter
-                        selectedTag = nil
-                    } label: {
-                        Label {
-                            HStack {
-                                Text(filter.rawValue)
-                                Spacer()
-                                Text("\(hostsManager.entryCount(for: filter))")
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
-                            }
-                        } icon: {
-                            Image(systemName: filter.icon)
+                ForEach(SidebarFilter.allCases) { filter in
+                    Label {
+                        HStack {
+                            Text(filter.rawValue)
+                            Spacer()
+                            Text("\(hostsManager.entryCount(for: filter))")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
                         }
+                    } icon: {
+                        Image(systemName: filter.icon)
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(selectedTag == nil && selectedFilter == filter ? Color.accentColor.opacity(0.2) : Color.clear)
+                    .tag(SidebarSelection.filter(filter))
                 }
             }
 
             Section("Tags") {
                 ForEach(hostsManager.tags) { tag in
                     HStack {
-                        Button {
-                            selectedTag = tag.name
-                        } label: {
-                            Label {
-                                HStack {
-                                    Text(tag.name)
-                                    Spacer()
-                                    Text("\(hostsManager.tagEntryCount(name: tag.name))")
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
-                                }
-                            } icon: {
-                                Image(systemName: "tag.fill")
-                                    .foregroundColor(.accentColor)
+                        Label {
+                            HStack {
+                                Text(tag.name)
+                                Spacer()
+                                Text("\(hostsManager.tagEntryCount(name: tag.name))")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
                             }
+                        } icon: {
+                            Image(systemName: "tag.fill")
+                                .foregroundStyle(.tint)
                         }
-                        .buttonStyle(.plain)
 
-                        Toggle("", isOn: Binding(
-                            get: { hostsManager.isTagEnabled(name: tag.name) },
-                            set: { _ in hostsManager.toggleTag(name: tag.name) }
-                        ))
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .labelsHidden()
+                        TagToggleButton(state: hostsManager.tagState(name: tag.name)) {
+                            hostsManager.toggleTag(name: tag.name)
+                        }
                     }
-                    .listRowBackground(selectedTag == tag.name ? Color.accentColor.opacity(0.2) : Color.clear)
+                    .tag(SidebarSelection.tag(tag.name))
                     .contextMenu {
                         Button {
                             renameTagOldName = tag.name
@@ -543,34 +563,19 @@ struct SidebarView: View {
                     showCreateTagAlert = true
                 } label: {
                     Label("Tạo tag mới...", systemImage: "plus.circle")
-                        .foregroundColor(.accentColor)
+                        .foregroundStyle(.tint)
                 }
                 .buttonStyle(.plain)
-            }
-
-            Section {
-                Button {
-                    selectedFilter = .presets
-                    selectedTag = nil
-                } label: {
-                    Label {
-                        Text(SidebarFilter.presets.rawValue)
-                    } icon: {
-                        Image(systemName: SidebarFilter.presets.icon)
-                    }
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(selectedTag == nil && selectedFilter == .presets ? Color.accentColor.opacity(0.2) : Color.clear)
             }
 
             if hostsManager.hasUnsavedChanges {
                 Section {
                     Label {
                         Text("Có thay đổi chưa lưu")
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                     } icon: {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
+                            .foregroundStyle(.orange)
                     }
                 }
             }
@@ -578,95 +583,45 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 180, ideal: 240)
-    }
-}
-
-// MARK: - Presets View
-
-struct PresetsView: View {
-    @ObservedObject var hostsManager: HostsFileManager
-
-    let columns = [GridItem(.adaptive(minimum: 160), spacing: 12)]
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Thêm nhanh")
-                    .font(.title2.bold())
-                    .padding(.horizontal)
-
-                let categories = Dictionary(grouping: presetItems) { $0.category }
-
-                ForEach(Array(categories.keys.sorted()), id: \.self) { category in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(category)
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(categories[category] ?? []) { preset in
-                                PresetCard(preset: preset, hostsManager: hostsManager)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
+        .alert("Tạo tag mới", isPresented: $showCreateTagAlert) {
+            TextField("Tên tag", text: $newTagName)
+            Button("Tạo") {
+                hostsManager.createTag(name: newTagName)
+                newTagName = ""
             }
-            .padding(.vertical)
+            Button("Hủy", role: .cancel) {
+                newTagName = ""
+            }
         }
-    }
-}
-
-struct PresetCard: View {
-    let preset: PresetItem
-    @ObservedObject var hostsManager: HostsFileManager
-
-    var exists: Bool {
-        hostsManager.hostnameExists(preset.hostname)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: preset.icon)
-                    .font(.title3)
-                    .foregroundColor(preset.ip == "0.0.0.0" ? .red : .blue)
-                Spacer()
-                if exists {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+        .alert("Đổi tên tag", isPresented: $showRenameTagAlert) {
+            TextField("Tên mới", text: $renameTagNewName)
+            Button("Đổi tên") {
+                hostsManager.renameTag(oldName: renameTagOldName, newName: renameTagNewName)
+                if case .tag(renameTagOldName) = selection {
+                    selection = .tag(renameTagNewName)
                 }
+                renameTagOldName = ""
+                renameTagNewName = ""
             }
-
-            Text(preset.name)
-                .font(.headline)
-
-            Text(preset.hostname)
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Text(preset.ip)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.secondary)
-
-            Button {
-                hostsManager.addEntry(ip: preset.ip, hostname: preset.hostname, comment: "Added by HostsManager")
-            } label: {
-                Text(exists ? "Đã thêm" : "Thêm")
-                    .frame(maxWidth: .infinity)
+            Button("Hủy", role: .cancel) {
+                renameTagOldName = ""
+                renameTagNewName = ""
             }
-            .buttonStyle(.borderedProminent)
-            .tint(exists ? .gray : (preset.ip == "0.0.0.0" ? .red : .blue))
-            .disabled(exists)
         }
-        .padding()
-        .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(10)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-        )
+        .alert("Xác nhận xóa tag", isPresented: $showDeleteTagConfirm) {
+            Button("Xóa", role: .destructive) {
+                if case .tag(deleteTagTarget) = selection {
+                    selection = .filter(.all)
+                }
+                hostsManager.deleteTag(name: deleteTagTarget)
+                deleteTagTarget = ""
+            }
+            Button("Hủy", role: .cancel) {
+                deleteTagTarget = ""
+            }
+        } message: {
+            Text("Xóa tag \"\(deleteTagTarget)\"? Các entry trong tag sẽ trở thành không có tag.")
+        }
     }
 }
 
@@ -705,57 +660,50 @@ struct EntryFormSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             Text(title)
                 .font(.title3.bold())
+                .padding(.top, 20)
+                .padding(.bottom, 12)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("IP Address")
-                    .font(.headline)
-                TextField("Ví dụ: 127.0.0.1", text: $ip)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
+            Form {
+                Section {
+                    TextField("IP Address", text: $ip, prompt: Text("Ví dụ: 127.0.0.1"))
+                        .font(.system(.body, design: .monospaced))
 
-                HStack(spacing: 8) {
-                    QuickIPButton(label: "127.0.0.1", ip: $ip)
-                    QuickIPButton(label: "0.0.0.0", ip: $ip)
-                    QuickIPButton(label: "::1", ip: $ip)
+                    HStack(spacing: 8) {
+                        Text("Chọn nhanh")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        QuickIPButton(label: "127.0.0.1", ip: $ip)
+                        QuickIPButton(label: "0.0.0.0", ip: $ip)
+                        QuickIPButton(label: "::1", ip: $ip)
+                    }
+
+                    TextField("Hostname", text: $hostname, prompt: Text("Ví dụ: example.com"))
+                        .font(.system(.body, design: .monospaced))
+
+                    TextField("Ghi chú", text: $comment, prompt: Text("Tuỳ chọn"))
                 }
-            }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Hostname")
-                    .font(.headline)
-                TextField("Ví dụ: example.com", text: $hostname)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Ghi chú (tuỳ chọn)")
-                    .font(.headline)
-                TextField("Ghi chú...", text: $comment)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            if !hostsManager.tags.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Tag")
-                        .font(.headline)
-                    Picker("Tag", selection: $selectedTag) {
-                        Text("Không có tag").tag("")
-                        ForEach(hostsManager.tags) { tag in
-                            Text(tag.name).tag(tag.name)
+                if !hostsManager.tags.isEmpty {
+                    Section {
+                        Picker("Tag", selection: $selectedTag) {
+                            Text("Không có tag").tag("")
+                            ForEach(hostsManager.tags) { tag in
+                                Text(tag.name).tag(tag.name)
+                            }
                         }
                     }
-                    .labelsHidden()
                 }
             }
+            .formStyle(.grouped)
 
             if !errorMessage.isEmpty {
                 Text(errorMessage)
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                     .font(.caption)
+                    .padding(.horizontal, 20)
             }
 
             HStack {
@@ -772,9 +720,10 @@ struct EntryFormSheet: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.return)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .padding(24)
-        .frame(width: 400)
+        .frame(width: 420, height: 360)
         .onAppear {
             if case .edit(let entry) = mode {
                 ip = entry.ip
@@ -843,7 +792,7 @@ struct ImportSheet: View {
 
             Text("Paste nội dung file hosts vào đây. Chỉ các entry chưa tồn tại mới được thêm.")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             TextEditor(text: $importText)
                 .font(.system(.body, design: .monospaced))
@@ -876,7 +825,7 @@ struct ImportSheet: View {
 struct ToastView: View {
     let toast: ToastMessage
 
-    var backgroundColor: Color {
+    var accentColor: Color {
         switch toast.type {
         case .success: return .green
         case .error: return .red
@@ -893,26 +842,36 @@ struct ToastView: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: icon)
+                .foregroundStyle(accentColor)
+                .font(.body.weight(.semibold))
             Text(toast.message)
-                .font(.callout)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.primary)
         }
-        .foregroundColor(.white)
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(backgroundColor.opacity(0.9))
-        .cornerRadius(8)
-        .shadow(radius: 4)
+        .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(accentColor.opacity(0.3), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
     }
 }
 
-struct AlternatingRowsModifier: ViewModifier {
+struct SearchableWithFocus: ViewModifier {
+    @Binding var searchText: String
+    @Binding var isPresented: Bool
+
     func body(content: Content) -> some View {
         if #available(macOS 14.0, *) {
-            content.alternatingRowBackgrounds()
+            content
+                .searchable(text: $searchText, isPresented: $isPresented, placement: .toolbar, prompt: "Tìm kiếm hostname, IP...")
         } else {
             content
+                .searchable(text: $searchText, placement: .toolbar, prompt: "Tìm kiếm hostname, IP...")
         }
     }
 }

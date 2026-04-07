@@ -36,7 +36,6 @@ enum SidebarFilter: String, CaseIterable, Identifiable {
     case enabled = "Đang bật"
     case disabled = "Đã tắt"
     case blocking = "Đang chặn"
-    case presets = "Thêm nhanh"
 
     var id: String { rawValue }
 
@@ -46,7 +45,6 @@ enum SidebarFilter: String, CaseIterable, Identifiable {
         case .enabled: return "checkmark.circle.fill"
         case .disabled: return "xmark.circle"
         case .blocking: return "hand.raised.fill"
-        case .presets: return "bolt.fill"
         }
     }
 }
@@ -71,6 +69,7 @@ class HostsFileManager: ObservableObject {
     @Published var commentLines: [(index: Int, text: String)] = []
     @Published var hasUnsavedChanges = false
     @Published var isApplying = false
+    @Published var isSearchFocused = false
     @Published var toast: ToastMessage?
 
     private var originalContent = ""
@@ -308,9 +307,9 @@ class HostsFileManager: ObservableObject {
     }
 
     func toggleTag(name: String) {
-        let tagEntries = entries.filter { $0.tag == name }
-        let allEnabled = tagEntries.allSatisfy { $0.isEnabled }
-        let newState = !allEnabled
+        let state = tagState(name: name)
+        // mixed or allEnabled → turn all off; allDisabled → turn all on
+        let newState = state == .allDisabled
 
         for i in entries.indices {
             if entries[i].tag == name {
@@ -320,9 +319,22 @@ class HostsFileManager: ObservableObject {
         hasUnsavedChanges = true
     }
 
-    func isTagEnabled(name: String) -> Bool {
+    enum TagState {
+        case allEnabled, allDisabled, mixed
+    }
+
+    func tagState(name: String) -> TagState {
         let tagEntries = entries.filter { $0.tag == name }
-        return !tagEntries.isEmpty && tagEntries.allSatisfy { $0.isEnabled }
+        guard !tagEntries.isEmpty else { return .allDisabled }
+        let allEnabled = tagEntries.allSatisfy { $0.isEnabled }
+        let allDisabled = tagEntries.allSatisfy { !$0.isEnabled }
+        if allEnabled { return .allEnabled }
+        if allDisabled { return .allDisabled }
+        return .mixed
+    }
+
+    func isTagEnabled(name: String) -> Bool {
+        return tagState(name: name) == .allEnabled
     }
 
     func moveEntryToTag(entryId: UUID, tag: String?) {
@@ -367,9 +379,7 @@ class HostsFileManager: ObservableObject {
             case .disabled:
                 result = result.filter { !$0.isEnabled }
             case .blocking:
-                result = result.filter { $0.ip == "0.0.0.0" || $0.ip == "127.0.0.1" && $0.hostname != "localhost" }
-            case .presets:
-                break
+                result = result.filter { ($0.ip == "0.0.0.0") || ($0.ip == "127.0.0.1" && $0.hostname != "localhost") }
             }
         }
 
@@ -390,7 +400,6 @@ class HostsFileManager: ObservableObject {
         case .enabled: return entries.filter { $0.isEnabled }.count
         case .disabled: return entries.filter { !$0.isEnabled }.count
         case .blocking: return entries.filter { $0.ip == "0.0.0.0" || ($0.ip == "127.0.0.1" && $0.hostname != "localhost") }.count
-        case .presets: return 0
         }
     }
 

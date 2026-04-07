@@ -16,8 +16,16 @@ struct HostsManagerApp: App {
                 .frame(minWidth: 800, minHeight: 500)
                 .navigationTitle("Hosts Manager v\(appVersion)")
         }
-        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unifiedCompact)
         .defaultSize(width: 1000, height: 650)
+        .commands {
+            CommandGroup(after: .textEditing) {
+                Button("Tìm kiếm") {
+                    hostsManager.isSearchFocused = true
+                }
+                .keyboardShortcut("f", modifiers: .command)
+            }
+        }
     }
 }
 
