@@ -234,16 +234,22 @@ struct ContentView: View {
                         hostsManager.applyChanges()
                     }
                 } label: {
-                    if hostsManager.isApplying {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("Áp dụng")
+                    HStack(spacing: 4) {
+                        if hostsManager.isApplying {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: hostsManager.hasUnsavedChanges ? "arrow.up.circle.fill" : "checkmark.circle")
+                                .symbolEffect(.pulse, isActive: hostsManager.hasUnsavedChanges)
+                        }
+                        Text(hostsManager.isApplying ? "Đang lưu..." : "Áp dụng")
                     }
                 }
-                .modifier(ApplyButtonStyleModifier(hasChanges: hostsManager.hasUnsavedChanges))
+                .buttonStyle(.borderedProminent)
+                .tint(hostsManager.hasUnsavedChanges ? .accentColor : .secondary)
                 .disabled(!hostsManager.hasUnsavedChanges || hostsManager.isApplying)
                 .keyboardShortcut("s", modifiers: .command)
+                .animation(.easeInOut(duration: 0.2), value: hostsManager.hasUnsavedChanges)
             }
         }
         .sheet(isPresented: $showAddSheet) {
@@ -379,10 +385,6 @@ struct ContentView: View {
                                     .padding(.vertical, 2)
                                     .background(Color.accentColor.opacity(0.15))
                                     .clipShape(.rect(cornerRadius: 4))
-                            } else {
-                                Text("—")
-                                    .foregroundStyle(.secondary)
-                                    .opacity(0.5)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -392,25 +394,13 @@ struct ContentView: View {
                     .width(min: 60, ideal: 100)
 
                     TableColumn("") { entry in
-                        HStack(spacing: 4) {
-                            Button {
-                                editingEntry = entry
-                            } label: {
-                                Image(systemName: "pencil")
-                            }
-                            .buttonStyle(.borderless)
-
-                            Button {
+                        EntryActionButtons(
+                            onEdit: { editingEntry = entry },
+                            onDelete: {
                                 deleteTarget = entry
                                 showDeleteConfirm = true
-                            } label: {
-                                Image(systemName: "trash")
-                                    .foregroundStyle(.red)
                             }
-                            .buttonStyle(.borderless)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .contentShape(Rectangle())
+                        )
                         .contextMenu { entryContextMenu(entry: entry) }
                     }
                     .width(60)
@@ -441,6 +431,37 @@ struct ContentView: View {
             showDeleteConfirm = true
         } label: {
             Label("Xóa", systemImage: "trash")
+        }
+    }
+}
+
+// MARK: - Entry Action Buttons (hover reveal)
+
+struct EntryActionButtons: View {
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button(action: onEdit) {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
+
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.borderless)
+        }
+        .opacity(isHovered ? 1 : 0)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
         }
     }
 }
@@ -511,6 +532,8 @@ struct SidebarView: View {
                             Text("\(hostsManager.entryCount(for: filter))")
                                 .foregroundStyle(.secondary)
                                 .font(.caption)
+                                .contentTransition(.numericText())
+                                .animation(.default, value: hostsManager.entryCount(for: filter))
                         }
                     } icon: {
                         Image(systemName: filter.icon)
@@ -529,6 +552,8 @@ struct SidebarView: View {
                                 Text("\(hostsManager.tagEntryCount(name: tag.name))")
                                     .foregroundStyle(.secondary)
                                     .font(.caption)
+                                    .contentTransition(.numericText())
+                                    .animation(.default, value: hostsManager.tagEntryCount(name: tag.name))
                             }
                         } icon: {
                             Image(systemName: "tag.fill")
@@ -575,12 +600,15 @@ struct SidebarView: View {
                     } icon: {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
+                            .symbolEffect(.pulse, isActive: true)
                     }
                 }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
         }
         .listStyle(.sidebar)
+        .animation(.easeInOut(duration: 0.25), value: hostsManager.hasUnsavedChanges)
         .navigationSplitViewColumnWidth(min: 180, ideal: 240)
         .alert("Tạo tag mới", isPresented: $showCreateTagAlert) {
             TextField("Tên tag", text: $newTagName)
@@ -891,22 +919,6 @@ struct GlassBackgroundModifier: ViewModifier {
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .stroke(tintColor.opacity(0.3), lineWidth: tintColor == .clear ? 0 : 1)
                 )
-        }
-    }
-}
-
-struct ApplyButtonStyleModifier: ViewModifier {
-    let hasChanges: Bool
-
-    func body(content: Content) -> some View {
-        if #available(macOS 26, *) {
-            content
-                .buttonStyle(.glassProminent)
-                .tint(hasChanges ? .blue : .gray)
-        } else {
-            content
-                .buttonStyle(.borderedProminent)
-                .tint(hasChanges ? .blue : .gray)
         }
     }
 }
