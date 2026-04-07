@@ -240,7 +240,7 @@ struct ContentView: View {
                                 .controlSize(.small)
                         } else {
                             Image(systemName: hostsManager.hasUnsavedChanges ? "arrow.up.circle.fill" : "checkmark.circle")
-                                .symbolEffect(.pulse, isActive: hostsManager.hasUnsavedChanges)
+                                .modifier(PulseEffectModifier(isActive: hostsManager.hasUnsavedChanges))
                         }
                         Text(hostsManager.isApplying ? "Đang lưu..." : "Áp dụng")
                     }
@@ -532,7 +532,7 @@ struct SidebarView: View {
                             Text("\(hostsManager.entryCount(for: filter))")
                                 .foregroundStyle(.secondary)
                                 .font(.caption)
-                                .contentTransition(.numericText())
+                                .modifier(NumericTransitionModifier())
                                 .animation(.default, value: hostsManager.entryCount(for: filter))
                         }
                     } icon: {
@@ -552,7 +552,7 @@ struct SidebarView: View {
                                 Text("\(hostsManager.tagEntryCount(name: tag.name))")
                                     .foregroundStyle(.secondary)
                                     .font(.caption)
-                                    .contentTransition(.numericText())
+                                    .modifier(NumericTransitionModifier())
                                     .animation(.default, value: hostsManager.tagEntryCount(name: tag.name))
                             }
                         } icon: {
@@ -600,7 +600,7 @@ struct SidebarView: View {
                     } icon: {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
-                            .symbolEffect(.pulse, isActive: true)
+                            .modifier(PulseEffectModifier(isActive: true))
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -919,6 +919,30 @@ struct GlassBackgroundModifier: ViewModifier {
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .stroke(tintColor.opacity(0.3), lineWidth: tintColor == .clear ? 0 : 1)
                 )
+        }
+    }
+}
+
+// MARK: - Availability Modifiers
+
+struct PulseEffectModifier: ViewModifier {
+    let isActive: Bool
+
+    func body(content: Content) -> some View {
+        if #available(macOS 14.0, *) {
+            content.symbolEffect(.pulse, isActive: isActive)
+        } else {
+            content
+        }
+    }
+}
+
+struct NumericTransitionModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 14.0, *) {
+            content.contentTransition(.numericText())
+        } else {
+            content
         }
     }
 }
