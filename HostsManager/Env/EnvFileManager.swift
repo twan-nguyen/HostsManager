@@ -107,22 +107,12 @@ final class EnvFileManager: ObservableObject {
 
     func discoverEnvFiles(in repoPath: String) -> [String] {
         let fm = FileManager.default
-        guard let contents = try? fm.contentsOfDirectory(atPath: repoPath) else { return [] }
-        var result: [String] = []
-        for name in contents where name.hasPrefix(".env") {
-            let fullPath = (repoPath as NSString).appendingPathComponent(name)
-            var isDir: ObjCBool = false
-            if fm.fileExists(atPath: fullPath, isDirectory: &isDir), !isDir.boolValue {
-                result.append(name)
-            }
+        let fullPath = (repoPath as NSString).appendingPathComponent(".env")
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: fullPath, isDirectory: &isDir), !isDir.boolValue else {
+            return []
         }
-        // .env first, then alphabetical
-        result.sort { a, b in
-            if a == ".env" { return true }
-            if b == ".env" { return false }
-            return a < b
-        }
-        return result
+        return [".env"]
     }
 
     // MARK: - File Load / Save
@@ -301,6 +291,36 @@ final class EnvFileManager: ObservableObject {
                 file.hasUnsavedChanges = true
             }
         }
+    }
+
+    func duplicateEntry(repoId: UUID, fileId: UUID, entryId: UUID) {
+        updateLoadedFile(repoId: repoId, fileId: fileId) { file in
+            guard let idx = file.entries.firstIndex(where: { $0.id == entryId }) else { return }
+            let source = file.entries[idx]
+            let existingKeys = Set(file.entries.map { $0.key })
+            let newKey = Self.uniqueKey(base: source.key, existing: existingKeys)
+            let copy = EnvEntry(
+                key: newKey,
+                value: source.value,
+                comment: source.comment,
+                isEnabled: source.isEnabled,
+                isBlankOrComment: source.isBlankOrComment,
+                rawLine: source.isBlankOrComment ? source.rawLine : nil
+            )
+            file.entries.insert(copy, at: idx + 1)
+            file.hasUnsavedChanges = true
+        }
+    }
+
+    private static func uniqueKey(base: String, existing: Set<String>) -> String {
+        guard !base.isEmpty else { return base }
+        var candidate = "\(base)_copy"
+        var n = 2
+        while existing.contains(candidate) {
+            candidate = "\(base)_copy_\(n)"
+            n += 1
+        }
+        return candidate
     }
 
     func toggleEntry(repoId: UUID, fileId: UUID, entryId: UUID) {

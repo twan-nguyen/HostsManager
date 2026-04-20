@@ -245,81 +245,141 @@ struct EnvFilePane: View {
             } else {
                 Table(rows) {
                     TableColumn("") { entry in
-                        if !entry.isBlankOrComment {
-                            Toggle("", isOn: Binding(
-                                get: { entry.isEnabled },
-                                set: { _ in
-                                    envManager.toggleEntry(
-                                        repoId: repo.id,
-                                        fileId: file.id,
-                                        entryId: entry.id
-                                    )
-                                }
-                            ))
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .labelsHidden()
+                        Group {
+                            if !entry.isBlankOrComment {
+                                Toggle("", isOn: Binding(
+                                    get: { entry.isEnabled },
+                                    set: { _ in
+                                        envManager.toggleEntry(
+                                            repoId: repo.id,
+                                            fileId: file.id,
+                                            entryId: entry.id
+                                        )
+                                    }
+                                ))
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                                .labelsHidden()
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .contextMenu { entryContextMenu(file: file, entry: entry) }
                     }
                     .width(40)
 
                     TableColumn("Key") { entry in
-                        if entry.isBlankOrComment {
-                            Text(entry.rawLine ?? "")
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .italic()
-                        } else {
-                            Text(entry.key)
-                                .font(.system(.body, design: .monospaced))
-                                .opacity(entry.isEnabled ? 1.0 : 0.5)
+                        Group {
+                            if entry.isBlankOrComment {
+                                Text(entry.rawLine ?? "")
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .italic()
+                            } else {
+                                Text(entry.key)
+                                    .font(.system(.body, design: .monospaced))
+                                    .opacity(entry.isEnabled ? 1.0 : 0.5)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .contextMenu { entryContextMenu(file: file, entry: entry) }
                     }
                     .width(min: 140, ideal: 220)
 
                     TableColumn("Value") { entry in
-                        if !entry.isBlankOrComment {
-                            Text(entry.value)
-                                .font(.system(.body, design: .monospaced))
-                                .opacity(entry.isEnabled ? 1.0 : 0.5)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .help(entry.value)
+                        Group {
+                            if !entry.isBlankOrComment {
+                                Text(entry.value)
+                                    .font(.system(.body, design: .monospaced))
+                                    .opacity(entry.isEnabled ? 1.0 : 0.5)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                    .help(entry.value)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .contextMenu { entryContextMenu(file: file, entry: entry) }
                     }
                     .width(min: 180, ideal: 400)
 
                     TableColumn("Comment") { entry in
-                        if !entry.isBlankOrComment {
-                            Text(entry.comment)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                        Group {
+                            if !entry.isBlankOrComment {
+                                Text(entry.comment)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .contextMenu { entryContextMenu(file: file, entry: entry) }
                     }
                     .width(min: 80, ideal: 180)
 
                     TableColumn("") { entry in
-                        if !entry.isBlankOrComment {
-                            HStack(spacing: 6) {
-                                Button {
-                                    editingEntry = entry
-                                } label: {
-                                    Image(systemName: "pencil")
+                        Group {
+                            if !entry.isBlankOrComment {
+                                HStack(spacing: 6) {
+                                    Button {
+                                        editingEntry = entry
+                                    } label: {
+                                        Image(systemName: "pencil")
+                                    }
+                                    .buttonStyle(.borderless)
+                                    Button {
+                                        deleteTarget = entry
+                                        showDeleteConfirm = true
+                                    } label: {
+                                        Image(systemName: "trash").foregroundStyle(.red)
+                                    }
+                                    .buttonStyle(.borderless)
                                 }
-                                .buttonStyle(.borderless)
-                                Button {
-                                    deleteTarget = entry
-                                    showDeleteConfirm = true
-                                } label: {
-                                    Image(systemName: "trash").foregroundStyle(.red)
-                                }
-                                .buttonStyle(.borderless)
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .contextMenu { entryContextMenu(file: file, entry: entry) }
                     }
                     .width(60)
                 }
                 .tableStyle(.bordered(alternatesRowBackgrounds: true))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func entryContextMenu(file: EnvFile, entry: EnvEntry) -> some View {
+        if !entry.isBlankOrComment {
+            Button {
+                editingEntry = entry
+            } label: {
+                Label("Sửa", systemImage: "pencil")
+            }
+
+            Button {
+                envManager.toggleEntry(repoId: repo.id, fileId: file.id, entryId: entry.id)
+            } label: {
+                Label(
+                    entry.isEnabled ? "Tắt" : "Bật",
+                    systemImage: entry.isEnabled ? "pause.circle" : "play.circle"
+                )
+            }
+
+            Button {
+                envManager.duplicateEntry(repoId: repo.id, fileId: file.id, entryId: entry.id)
+            } label: {
+                Label("Nhân đôi", systemImage: "plus.square.on.square")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                deleteTarget = entry
+                showDeleteConfirm = true
+            } label: {
+                Label("Xoá", systemImage: "trash")
             }
         }
     }
