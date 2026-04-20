@@ -4,7 +4,8 @@ struct EnvFilePane: View {
     @EnvironmentObject var envManager: EnvFileManager
     let repo: EnvRepo
 
-    @State private var availableFiles: [String] = []
+    @State private var discoverResult: EnvDiscoverResult = .ok([])
+    private var availableFiles: [String] { discoverResult.paths }
     @State private var selectedFilePath: String?
     @State private var searchText: String = ""
     @State private var editingEntry: EnvEntry?
@@ -96,10 +97,7 @@ struct EnvFilePane: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     if availableFiles.isEmpty {
-                        Text("Không tìm thấy file .env")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                            .padding(.horizontal, 12)
+                        emptyTabMessage
                     } else {
                         ForEach(availableFiles, id: \.self) { path in
                             fileTabButton(path)
@@ -133,6 +131,45 @@ struct EnvFilePane: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private var emptyTabMessage: some View {
+        // Phân biệt 2 nguyên nhân: folder biến mất vs chỉ thiếu file — giúp user fix đúng chỗ
+        switch discoverResult {
+        case .repoMissing:
+            Label {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Folder repo không tồn tại").font(.caption).bold()
+                    Text(repo.path)
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            } icon: {
+                Image(systemName: "folder.badge.questionmark").foregroundStyle(.orange)
+            }
+            .padding(.horizontal, 12)
+            .help(repo.path)
+        case .envMissing:
+            Label {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Không có .env / .env.local trong repo").font(.caption).bold()
+                    Text(repo.path)
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            } icon: {
+                Image(systemName: "doc.badge.ellipsis").foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .help(repo.path)
+        case .ok:
+            EmptyView()
+        }
     }
 
     private func fileTabButton(_ path: String) -> some View {
@@ -485,7 +522,7 @@ struct EnvFilePane: View {
     // MARK: - Helpers
 
     private func refreshFiles() {
-        availableFiles = envManager.discoverEnvFiles(in: repo.path)
+        discoverResult = envManager.discoverEnvFiles(in: repo.path)
         loadError = nil
         if let selected = selectedFilePath, availableFiles.contains(selected) {
             loadSelected(selected)

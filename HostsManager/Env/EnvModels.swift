@@ -90,6 +90,18 @@ struct EnvRepo: Identifiable, Codable, Equatable {
     }
 }
 
+// Kết quả discover giúp UI phân biệt 3 trạng thái lỗi thay vì chỉ hiện "không tìm thấy"
+enum EnvDiscoverResult: Equatable {
+    case ok([String])
+    case repoMissing      // Thư mục repo không còn tồn tại
+    case envMissing       // Thư mục repo OK nhưng không có file .env
+
+    var paths: [String] {
+        if case .ok(let p) = self { return p }
+        return []
+    }
+}
+
 enum EnvError: LocalizedError {
     case repoNotFound
     case profileNotFound

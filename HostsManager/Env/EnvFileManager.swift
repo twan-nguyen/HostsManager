@@ -105,14 +105,22 @@ final class EnvFileManager: ObservableObject {
 
     // MARK: - File Discovery
 
-    func discoverEnvFiles(in repoPath: String) -> [String] {
+    // Chỉ hỗ trợ .env và .env.local — bản chuẩn và bản local override, không quét rộng hơn để tránh lẫn sample/test
+    private static let supportedEnvFiles = [".env", ".env.local"]
+
+    func discoverEnvFiles(in repoPath: String) -> EnvDiscoverResult {
         let fm = FileManager.default
-        let fullPath = (repoPath as NSString).appendingPathComponent(".env")
-        var isDir: ObjCBool = false
-        guard fm.fileExists(atPath: fullPath, isDirectory: &isDir), !isDir.boolValue else {
-            return []
+        var repoIsDir: ObjCBool = false
+        // Repo path phải tồn tại và là directory — nếu không, báo rõ để user biết folder bị xoá/đổi tên
+        guard fm.fileExists(atPath: repoPath, isDirectory: &repoIsDir), repoIsDir.boolValue else {
+            return .repoMissing
         }
-        return [".env"]
+        let found = Self.supportedEnvFiles.filter { name in
+            let full = (repoPath as NSString).appendingPathComponent(name)
+            var isDir: ObjCBool = false
+            return fm.fileExists(atPath: full, isDirectory: &isDir) && !isDir.boolValue
+        }
+        return found.isEmpty ? .envMissing : .ok(found)
     }
 
     // MARK: - File Load / Save
@@ -356,7 +364,7 @@ final class EnvFileManager: ObservableObject {
         }
 
         let repoPath = repos[repoIdx].path
-        let discoveredPaths = discoverEnvFiles(in: repoPath)
+        let discoveredPaths = discoverEnvFiles(in: repoPath).paths
         var snapshots: [ProfileFileSnapshot] = []
         for relative in discoveredPaths {
             let url = URL(fileURLWithPath: repoPath).appendingPathComponent(relative)

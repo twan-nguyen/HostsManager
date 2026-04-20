@@ -45,20 +45,28 @@ struct EnvSidebarView: View {
     private func repoRow(_ repo: EnvRepo) -> some View {
         let exists = envManager.repoPathExists(repo)
         Label {
-            HStack {
-                Text(repo.name)
-                    .foregroundStyle(exists ? .primary : .secondary)
+            HStack(spacing: 4) {
+                // Path hiển thị dưới tên giúp user nhìn thấy đúng thư mục đang trỏ tới, tránh nhầm repo cùng tên
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(repo.name)
+                        .foregroundStyle(exists ? .primary : .secondary)
+                    Text(repo.path)
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
                 Spacer()
                 if !exists {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
-                        .help("Thư mục không tồn tại")
                 }
             }
         } icon: {
             Image(systemName: exists ? "folder.fill" : "folder.badge.questionmark")
                 .foregroundStyle(exists ? Color.accentColor : Color.secondary)
         }
+        .help(exists ? repo.path : "\(repo.path)\n(thư mục không tồn tại)")
         .contextMenu {
             Button {
                 renamingRepoId = repo.id
