@@ -1,5 +1,5 @@
 APP_NAME = HostsManager
-VERSION = 1.7.6
+VERSION = 1.7.7
 BUILD_DIR = build
 RELEASE_DIR = release
 ARCHIVE_PATH = $(BUILD_DIR)/$(APP_NAME).xcarchive
