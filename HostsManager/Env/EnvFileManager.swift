@@ -307,10 +307,8 @@ final class EnvFileManager: ObservableObject {
         updateLoadedFile(repoId: repoId, fileId: fileId) { file in
             guard let idx = file.entries.firstIndex(where: { $0.id == entryId }) else { return }
             let source = file.entries[idx]
-            let existingKeys = Set(file.entries.map { $0.key })
-            let newKey = Self.uniqueKey(base: source.key, existing: existingKeys)
             let copy = EnvEntry(
-                key: newKey,
+                key: source.key,
                 value: source.value,
                 comment: source.comment,
                 isEnabled: source.isEnabled,
@@ -322,17 +320,6 @@ final class EnvFileManager: ObservableObject {
             inserted = copy
         }
         return inserted
-    }
-
-    private static func uniqueKey(base: String, existing: Set<String>) -> String {
-        guard !base.isEmpty else { return base }
-        var candidate = "\(base)_copy"
-        var n = 2
-        while existing.contains(candidate) {
-            candidate = "\(base)_copy_\(n)"
-            n += 1
-        }
-        return candidate
     }
 
     func toggleEntry(repoId: UUID, fileId: UUID, entryId: UUID) {

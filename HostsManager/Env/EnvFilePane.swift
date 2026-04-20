@@ -41,10 +41,7 @@ struct EnvFilePane: View {
         .onChange(of: repo.id) { _ in refreshFiles() }
         .sheet(isPresented: $showAddSheet) {
             if let file = currentFile {
-                EnvKeyFormSheet(
-                    mode: .add,
-                    existingKeys: Set(file.entries.map { $0.key })
-                ) { key, value, comment in
+                EnvKeyFormSheet(mode: .add) { key, value, comment in
                     envManager.addEntry(
                         repoId: repo.id,
                         fileId: file.id,
@@ -57,11 +54,7 @@ struct EnvFilePane: View {
         }
         .sheet(item: $editingEntry) { entry in
             if let file = currentFile {
-                let otherKeys = Set(file.entries.filter { $0.id != entry.id }.map { $0.key })
-                EnvKeyFormSheet(
-                    mode: .edit(entry),
-                    existingKeys: otherKeys
-                ) { key, value, comment in
+                EnvKeyFormSheet(mode: .edit(entry)) { key, value, comment in
                     envManager.updateEntry(
                         repoId: repo.id,
                         fileId: file.id,

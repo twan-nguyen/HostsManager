@@ -14,7 +14,6 @@ enum EnvKeyFormMode: Identifiable {
 
 struct EnvKeyFormSheet: View {
     let mode: EnvKeyFormMode
-    let existingKeys: Set<String>
     let onSave: (String, String, String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -31,11 +30,6 @@ struct EnvKeyFormSheet: View {
 
     private var title: String {
         isEditing ? "Sửa key" : "Thêm key mới"
-    }
-
-    private var originalKey: String {
-        if case .edit(let entry) = mode { return entry.key }
-        return ""
     }
 
     var body: some View {
@@ -96,10 +90,6 @@ struct EnvKeyFormSheet: View {
         }
         guard isValidKey(trimmedKey) else {
             errorMessage = "Key chỉ chứa A-Z, 0-9, và _ (không bắt đầu bằng số)"
-            return
-        }
-        if trimmedKey != originalKey, existingKeys.contains(trimmedKey) {
-            errorMessage = "Key \"\(trimmedKey)\" đã tồn tại"
             return
         }
         onSave(trimmedKey, value, comment.trimmingCharacters(in: .whitespaces))
