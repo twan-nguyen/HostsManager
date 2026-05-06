@@ -14,6 +14,8 @@ struct EnvFilePane: View {
     @State private var deleteTarget: EnvEntry?
     @State private var showDeleteConfirm: Bool = false
     @State private var loadError: String?
+    @State private var isLoadingFile: Bool = false
+    @State private var loadingPath: String?
     @State private var profileSheetMode: EnvProfileSheetMode?
     @State private var pendingApplyProfileId: UUID?
     @State private var showApplyConfirm: Bool = false
@@ -37,8 +39,11 @@ struct EnvFilePane: View {
         }
         .modifier(SearchableWithFocus(searchText: $searchText, isPresented: $isSearchFocused))
         .toolbar { toolbarContent }
-        .onAppear(perform: refreshFiles)
-        .onChange(of: repo.id) { _ in refreshFiles() }
+        // .task(id:) chạy mỗi khi view appear hoặc repo.id đổi, với `self` hiện tại
+        // (.onAppear + .onChange capture self cũ → đọc repo.path sai khi user click repo khác).
+        .task(id: repo.id) {
+            refreshFiles()
+        }
         .sheet(isPresented: $showAddSheet) {
             if let file = currentFile {
                 EnvKeyFormSheet(mode: .add) { key, value, comment in
@@ -259,6 +264,17 @@ struct EnvFilePane: View {
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if isLoadingFile && currentFile == nil {
+            VStack(spacing: 12) {
+                Spacer()
+                ProgressView()
+                    .controlSize(.regular)
+                Text("Đang đọc \(loadingPath ?? "")")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let file = currentFile {
             if viewMode == .text {
                 rawEditorView(file)
@@ -285,7 +301,7 @@ struct EnvFilePane: View {
                 Text(file.relativePath)
                     .font(.system(.headline, design: .monospaced))
                 Spacer()
-                Text("\(rawText.components(separatedBy: "\n").count) dòng")
+                Text("\(lineCount(rawText)) dòng")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -297,9 +313,27 @@ struct EnvFilePane: View {
 
             RawTextEditor(text: $rawText)
                 .onChange(of: rawText) { _ in
-                    envManager.markFileDirty(repoId: repo.id, fileId: file.id)
+                    guard file.hasUnsavedChanges == false else { return }
+                    let repoId = repo.id
+                    let fileId = file.id
+                    DispatchQueue.main.async {
+                        envManager.markFileDirty(repoId: repoId, fileId: fileId)
+                    }
                 }
         }
+    }
+
+    /// Đếm dòng bằng utf8 byte scan — tránh cấp phát mảng String mỗi keystroke.
+    private func lineCount(_ s: String) -> Int {
+        if s.isEmpty { return 1 }
+        var count = 1
+        for byte in s.utf8 where byte == 0x0A {
+            count += 1
+        }
+        if s.utf8.last == 0x0A {
+            count -= 1
+        }
+        return count
     }
 
     private func entriesTable(_ file: EnvFile) -> some View {
@@ -496,15 +530,23 @@ struct EnvFilePane: View {
         // Commit pending raw edits on the previous file before switching away,
         // otherwise the user's in-progress raw text would be lost silently.
         if viewMode == .text, let oldFile = currentFile, oldFile.relativePath != path {
-            envManager.replaceEntriesFromRawText(
-                repoId: repo.id,
-                fileId: oldFile.id,
-                rawText: rawText
-            )
+            // selectFile có thể được gọi từ .task closure → defer @Published mutation
+            let repoId = repo.id
+            let oldFileId = oldFile.id
+            let snapshot = rawText
+            DispatchQueue.main.async {
+                envManager.replaceEntriesFromRawText(
+                    repoId: repoId,
+                    fileId: oldFileId,
+                    rawText: snapshot
+                )
+            }
         }
         selectedFilePath = path
         loadSelected(path)
-        if viewMode == .text, let file = currentFile {
+        // Nếu đã có cache (sync return từ loadSelected) thì sync rawText ngay,
+        // còn khi async đang chạy thì loadSelected sẽ tự gán rawText sau khi xong.
+        if viewMode == .text, let file = currentFile, file.relativePath == path {
             rawText = EnvParser.format(file.entries)
         }
     }
@@ -515,11 +557,17 @@ struct EnvFilePane: View {
             rawText = EnvParser.format(file.entries)
             searchText = ""
         } else {
-            envManager.replaceEntriesFromRawText(
-                repoId: repo.id,
-                fileId: file.id,
-                rawText: rawText
-            )
+            // Defer @Published mutation ra ngoài view update phase
+            let repoId = repo.id
+            let fileId = file.id
+            let snapshot = rawText
+            DispatchQueue.main.async {
+                envManager.replaceEntriesFromRawText(
+                    repoId: repoId,
+                    fileId: fileId,
+                    rawText: snapshot
+                )
+            }
         }
     }
 
@@ -530,12 +578,36 @@ struct EnvFilePane: View {
             loadError = nil
             return
         }
-        do {
-            let file = try envManager.loadFile(repoId: repo.id, relativePath: path)
-            envManager.setLoadedFile(repoId: repo.id, file: file)
+        // Nếu đã có cache (đã load trước đó) thì không cần reload — tránh nháy spinner.
+        if envManager.loadedFile(repoId: repo.id, relativePath: path) != nil {
             loadError = nil
-        } catch {
-            loadError = error.localizedDescription
+            return
+        }
+
+        // Async load để I/O + parse không block main actor (root cause của lag lần đầu).
+        loadError = nil
+        isLoadingFile = true
+        loadingPath = path
+        let repoId = repo.id
+
+        Task { @MainActor in
+            do {
+                let file = try await envManager.loadFileAsync(repoId: repoId, relativePath: path)
+                // Bỏ kết quả nếu user đã chọn file khác trong lúc đang load
+                guard loadingPath == path else { return }
+                envManager.setLoadedFile(repoId: repoId, file: file)
+                loadError = nil
+                if viewMode == .text, selectedFilePath == path {
+                    rawText = EnvParser.format(file.entries)
+                }
+            } catch {
+                guard loadingPath == path else { return }
+                loadError = error.localizedDescription
+            }
+            if loadingPath == path {
+                isLoadingFile = false
+                loadingPath = nil
+            }
         }
     }
 

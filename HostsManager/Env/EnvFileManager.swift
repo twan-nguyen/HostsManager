@@ -142,6 +142,28 @@ final class EnvFileManager: ObservableObject {
         return EnvFile(relativePath: relativePath, entries: entries, hasUnsavedChanges: false)
     }
 
+    /// Async variant: chạy disk read + parse trên background để tránh block main actor khi lần đầu load.
+    /// Trả về `EnvFile` để caller tự gọi `setLoadedFile`. Validate path đồng bộ trước khi rời main actor.
+    func loadFileAsync(repoId: UUID, relativePath: String) async throws -> EnvFile {
+        guard let repo = repos.first(where: { $0.id == repoId }) else {
+            throw EnvError.repoNotFound
+        }
+        try validateRelativePath(relativePath)
+        let repoPath = repo.path
+
+        return try await Task.detached(priority: .userInitiated) {
+            let url = URL(fileURLWithPath: repoPath).appendingPathComponent(relativePath)
+            let content: String
+            do {
+                content = try String(contentsOf: url, encoding: .utf8)
+            } catch {
+                throw EnvError.fileReadFailed(error.localizedDescription)
+            }
+            let entries = EnvParser.parse(content)
+            return EnvFile(relativePath: relativePath, entries: entries, hasUnsavedChanges: false)
+        }.value
+    }
+
     func applyChanges(repoId: UUID, file: EnvFile) throws {
         guard let repo = repos.first(where: { $0.id == repoId }) else {
             throw EnvError.repoNotFound
