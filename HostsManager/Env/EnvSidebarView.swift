@@ -10,7 +10,14 @@ struct EnvSidebarView: View {
     var body: some View {
         List(selection: Binding(
             get: { envManager.selectedRepoId },
-            set: { envManager.selectedRepoId = $0 }
+            set: { newValue in
+                // Defer ra khỏi view update phase — SwiftUI có thể gọi setter trong render
+                // để reconcile selection, gây "Publishing changes from within view updates".
+                guard newValue != envManager.selectedRepoId else { return }
+                DispatchQueue.main.async {
+                    envManager.selectedRepoId = newValue
+                }
+            }
         )) {
             Section("Repos") {
                 if envManager.repos.isEmpty {
