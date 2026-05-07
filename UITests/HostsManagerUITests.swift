@@ -97,10 +97,8 @@ final class HostsManagerUITests: XCTestCase {
         XCTAssertTrue(close.isHittable, "Close button still hittable after Env tab — traffic lights must persist")
     }
 
-    /// Regression: NavigationSplitView in EnvView auto-derived window title from
-    /// CFBundleName ("HostsManager") and rendered it above our custom TitleBarView.
-    /// Fixed via .windowToolbarStyle(.unified(showsTitle: false)) at the scene.
-    /// Custom title is "Hosts Manager" (with space); bundle name is "HostsManager".
+    /// Regression: bundle-name "HostsManager" must not render as window title
+    /// above the custom TitleBarView. Custom title is "Hosts Manager" (with space).
     func test_windowTitle_bundleNameNotShownAfterEnvSwitch() {
         let envTab = app.buttons["tab-env"]
         XCTAssertTrue(envTab.waitForExistence(timeout: 3))
@@ -113,13 +111,12 @@ final class HostsManagerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Hosts Manager"].exists,
                       "Custom TitleBarView text must remain")
 
-        // NSV's auto-installed "Hide Sidebar" toggle (lives inside the sidebar
-        // column, not the window toolbar) must be hidden via .toolbar(removing: .sidebarToggle).
+        // No NSV in layout (replaced by HStack) → no auto-installed sidebar
+        // toggle should ever appear.
         let toggleSidebar = app.buttons.matching(NSPredicate(
             format: "label CONTAINS[c] 'sidebar'"
         ))
-        XCTAssertEqual(toggleSidebar.count, 0,
-                       "NavigationSplitView sidebar-toggle must be hidden")
+        XCTAssertEqual(toggleSidebar.count, 0, "No sidebar toggle should exist (HStack layout)")
     }
 
     func test_searchField_filtersHostList() throws {

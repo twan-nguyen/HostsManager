@@ -56,7 +56,6 @@ struct SidebarView: View {
                 .background(Color.dsBackgroundSidebar)
         }
         .background(Color.dsBackgroundSidebar)
-        .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
         .sheet(isPresented: $showCreateProfileSheet) { createProfileSheet }
         .alert(
             "Đổi tên profile",

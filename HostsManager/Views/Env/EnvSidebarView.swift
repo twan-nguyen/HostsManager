@@ -22,7 +22,6 @@ struct EnvSidebarView: View {
             addRepoButton
         }
         .background(Color.dsBackgroundSidebar)
-        .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
         .alert("Đổi tên repo", isPresented: $showRenameAlert) {
             TextField("Tên mới", text: $renameBuffer)
             Button("Đổi") { performRename() }
