@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ImportSheet: View {
-    @ObservedObject var hostsManager: HostsFileManager
+    let hostsManager: HostsFileManager
     @Environment(\.dismiss) private var dismiss
     @State private var importText = ""
 

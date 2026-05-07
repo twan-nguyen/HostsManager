@@ -2,13 +2,13 @@ name: HostsManager
 options:
   bundleIdPrefix: com.hostsmanager
   deploymentTarget:
-    macOS: "13.0"
+    macOS: "14.0"
   xcodeVersion: "15.0"
 settings:
   base:
-    MARKETING_VERSION: "1.7.7"
+    MARKETING_VERSION: "2.0.0"
     CURRENT_PROJECT_VERSION: "1"
-    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
     ARCHS: "arm64 x86_64"
     ONLY_ACTIVE_ARCH: NO
     CODE_SIGN_IDENTITY: "-"
@@ -30,3 +30,40 @@ targets:
         SWIFT_OBJC_BRIDGING_HEADER: HostsManager/HostsManager-Bridging-Header.h
     dependencies:
       - sdk: Security.framework
+  HostsManagerTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests
+    dependencies:
+      - target: HostsManager
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.hostsmanager.app.tests
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/HostsManager.app/Contents/MacOS/HostsManager"
+  HostsManagerUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - UITests
+    dependencies:
+      - target: HostsManager
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.hostsmanager.app.uitests
+        TEST_TARGET_NAME: HostsManager
+schemes:
+  HostsManager:
+    build:
+      targets:
+        HostsManager: all
+        HostsManagerTests: [test]
+        HostsManagerUITests: [test]
+    test:
+      targets:
+        - HostsManagerTests
+        - HostsManagerUITests
+      gatherCoverageData: true

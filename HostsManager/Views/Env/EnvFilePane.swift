@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct EnvFilePane: View {
-    @EnvironmentObject var envManager: EnvFileManager
+    @Environment(EnvFileManager.self) private var envManager
     let repo: EnvRepo
 
     @State private var discoverResult: EnvDiscoverResult = .ok([])
@@ -21,6 +21,7 @@ struct EnvFilePane: View {
     @State private var showApplyConfirm: Bool = false
     @State private var viewMode: ViewMode = .table
     @State private var rawText: String = ""
+    @FocusState private var isSearchFieldFocused: Bool
 
     private var currentFile: EnvFile? {
         guard let path = selectedFilePath else { return nil }
@@ -33,12 +34,12 @@ struct EnvFilePane: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            detailHeaderBar
             fileTabBar
             Divider()
             mainContent
         }
-        .modifier(SearchableWithFocus(searchText: $searchText, isPresented: $isSearchFocused))
-        .toolbar { toolbarContent }
+        .toolbar(.hidden, for: .windowToolbar)
         // .task(id:) chạy mỗi khi view appear hoặc repo.id đổi, với `self` hiện tại
         // (.onAppear + .onChange capture self cũ → đọc repo.path sai khi user click repo khác).
         .task(id: repo.id) {
@@ -83,7 +84,7 @@ struct EnvFilePane: View {
         }
         .sheet(item: $profileSheetMode) { mode in
             EnvProfileSheet(mode: mode)
-                .environmentObject(envManager)
+                .environment(envManager)
         }
         .alert("Áp dụng profile?", isPresented: $showApplyConfirm) {
             Button("Áp dụng", role: .destructive) { performApplyProfile() }
@@ -93,33 +94,50 @@ struct EnvFilePane: View {
         }
     }
 
-    // MARK: - Toolbar
+    // MARK: - Detail header (replaces window toolbar — same pattern as HostsView)
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        // Left: secondary view controls
-        ToolbarItemGroup(placement: .navigation) {
-            Picker("Mode", selection: $viewMode) {
+    private var detailHeaderBar: some View {
+        HStack(spacing: DSSpacing.p3) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(repo.name)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color.dsTextPrimary)
+                Text(headerSubtitleText)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+
+            Spacer()
+
+            inlineSearchField
+
+            Picker("", selection: $viewMode) {
                 Image(systemName: "tablecells").tag(ViewMode.table)
                 Image(systemName: "doc.plaintext").tag(ViewMode.text)
             }
             .pickerStyle(.segmented)
-            .help("Chuyển đổi chế độ xem")
+            .labelsHidden()
+            .frame(width: 88)
             .disabled(currentFile == nil)
             .onChange(of: viewMode) { newValue in
                 syncModeChange(to: newValue)
             }
-        }
 
-        // Right: primary actions
-        ToolbarItemGroup(placement: .primaryAction) {
             Button {
                 showAddSheet = true
             } label: {
                 Image(systemName: "plus")
+                    .font(.system(size: 12))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                            .strokeBorder(Color.dsBorderSecondary, lineWidth: 0.5)
+                    )
             }
-            .help("Thêm key mới")
+            .buttonStyle(.plain)
             .disabled(currentFile == nil || viewMode == .text)
+            .help("Thêm key mới")
 
             Menu {
                 if !repo.profiles.isEmpty {
@@ -158,31 +176,51 @@ struct EnvFilePane: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.dsTextSecondary)
             }
             .menuStyle(.borderlessButton)
-            .help("Tuỳ chọn khác")
+            .fixedSize()
             .disabled(viewMode == .text)
-
-            applyButton
+            .help("Tuỳ chọn khác")
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, DSSpacing.p3)
+        .padding(.bottom, DSSpacing.p2)
+        .background(Color.dsBackground)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.dsBorderTertiary).frame(height: 0.5)
         }
     }
 
-    private var applyButton: some View {
-        Button {
-            apply()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: hasUnsavedChanges ? "arrow.up.circle.fill" : "checkmark.circle")
-                    .modifier(PulseEffectModifier(isActive: hasUnsavedChanges))
-                Text("Áp dụng")
-                    .fontWeight(.medium)
-            }
+    private var inlineSearchField: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.dsTextTertiary)
+            TextField("Tìm key, value…", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 11.5))
+                .frame(width: 200)
+                .focused($isSearchFieldFocused)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(hasUnsavedChanges ? .accentColor : .secondary)
-        .disabled(!hasUnsavedChanges)
-        .keyboardShortcut("s", modifiers: .command)
-        .animation(.easeInOut(duration: 0.2), value: hasUnsavedChanges)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .fill(Color.white.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .strokeBorder(Color.dsBorderSecondary, lineWidth: 0.5)
+        )
+    }
+
+    private var headerSubtitleText: String {
+        guard let file = currentFile else { return "Chưa chọn file" }
+        let total = file.entries.filter { !$0.isBlankOrComment }.count
+        let active = file.entries.filter { !$0.isBlankOrComment && $0.isEnabled }.count
+        return "\(file.relativePath) · \(active)/\(total) keys"
     }
 
     // MARK: - File tabs
@@ -356,145 +394,50 @@ struct EnvFilePane: View {
                     action: searchText.isEmpty ? { showAddSheet = true } : nil
                 )
             } else {
-                Table(rows) {
-                    TableColumn("") { entry in
-                        Group {
-                            if !entry.isBlankOrComment {
-                                Toggle("", isOn: Binding(
-                                    get: { entry.isEnabled },
-                                    set: { _ in
-                                        envManager.toggleEntry(
-                                            repoId: repo.id,
-                                            fileId: file.id,
-                                            entryId: entry.id
-                                        )
-                                    }
-                                ))
-                                .toggleStyle(.switch)
-                                .controlSize(.small)
-                                .labelsHidden()
-                            }
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        envListHeader
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { index, entry in
+                            EnvRowView(
+                                entry: entry,
+                                onToggle: { _ in
+                                    envManager.toggleEntry(
+                                        repoId: repo.id,
+                                        fileId: file.id,
+                                        entryId: entry.id
+                                    )
+                                },
+                                onEdit: { editingEntry = entry },
+                                onDelete: {
+                                    deleteTarget = entry
+                                    showDeleteConfirm = true
+                                },
+                                isAlternate: index.isMultiple(of: 2)
+                            )
                         }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .contentShape(Rectangle())
-                        .contextMenu { entryContextMenu(file: file, entry: entry) }
                     }
-                    .width(50)
-
-                    TableColumn("Key") { entry in
-                        Group {
-                            if entry.isBlankOrComment {
-                                Text(entry.rawLine ?? "")
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                                    .italic()
-                            } else {
-                                Text(entry.key)
-                                    .font(.system(.body, design: .monospaced).weight(entry.isEnabled ? .medium : .regular))
-                                    .foregroundStyle(.primary)
-                                    .opacity(entry.isEnabled ? 1.0 : 0.5)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                        .contextMenu { entryContextMenu(file: file, entry: entry) }
-                    }
-                    .width(min: 140, ideal: 220)
-
-                    TableColumn("Value") { entry in
-                        Group {
-                            if !entry.isBlankOrComment {
-                                Text(entry.value)
-                                    .font(.system(.body, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                                    .opacity(entry.isEnabled ? 1.0 : 0.5)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                    .help(entry.value)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                        .contextMenu { entryContextMenu(file: file, entry: entry) }
-                    }
-                    .width(min: 180, ideal: 400)
-
-                    TableColumn("Comment") { entry in
-                        Group {
-                            if !entry.isBlankOrComment {
-                                Text(entry.comment)
-                                    .font(.callout)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                        .contextMenu { entryContextMenu(file: file, entry: entry) }
-                    }
-                    .width(min: 80, ideal: 180)
-
-                    TableColumn("") { entry in
-                        Group {
-                            if !entry.isBlankOrComment {
-                                EntryActionButtons(
-                                    onEdit: { editingEntry = entry },
-                                    onDelete: {
-                                        deleteTarget = entry
-                                        showDeleteConfirm = true
-                                    }
-                                )
-                                .contextMenu { entryContextMenu(file: file, entry: entry) }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .contentShape(Rectangle())
-                    }
-                    .width(60)
                 }
-                .tableStyle(.bordered(alternatesRowBackgrounds: true))
+                .background(Color.dsBackground)
             }
         }
     }
 
-    @ViewBuilder
-    private func entryContextMenu(file: EnvFile, entry: EnvEntry) -> some View {
-        if !entry.isBlankOrComment {
-            Button {
-                editingEntry = entry
-            } label: {
-                Label("Sửa", systemImage: "pencil")
-            }
-
-            Button {
-                envManager.toggleEntry(repoId: repo.id, fileId: file.id, entryId: entry.id)
-            } label: {
-                Label(
-                    entry.isEnabled ? "Tắt" : "Bật",
-                    systemImage: entry.isEnabled ? "pause.circle" : "play.circle"
-                )
-            }
-
-            Button {
-                if let copy = envManager.duplicateEntry(
-                    repoId: repo.id,
-                    fileId: file.id,
-                    entryId: entry.id
-                ) {
-                    editingEntry = copy
-                }
-            } label: {
-                Label("Nhân đôi", systemImage: "plus.square.on.square")
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                deleteTarget = entry
-                showDeleteConfirm = true
-            } label: {
-                Label("Xoá", systemImage: "trash")
-            }
+    /// Column header above env list. Widths from `EnvRowLayout`.
+    private var envListHeader: some View {
+        HStack(spacing: DSSpacing.p2) {
+            Spacer().frame(width: EnvRowLayout.toggle)
+            Text("KEY")
+                .frame(width: EnvRowLayout.key, alignment: .leading)
+            Text("VALUE")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer().frame(width: EnvRowLayout.menu)
+        }
+        .font(.dsLabel)
+        .foregroundStyle(Color.dsTextTertiary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, DSSpacing.p2)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.dsBorderSecondary).frame(height: 0.5)
         }
     }
 

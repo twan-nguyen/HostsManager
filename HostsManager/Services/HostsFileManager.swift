@@ -62,21 +62,102 @@ struct ToastMessage: Equatable {
     }
 }
 
+@Observable
 @MainActor
-class HostsFileManager: ObservableObject {
-    @Published var entries: [HostEntry] = []
-    @Published var tags: [HostTag] = []
-    @Published var commentLines: [(index: Int, text: String)] = []
-    @Published var hasUnsavedChanges = false
-    @Published var isApplying = false
-    @Published var isSearchFocused = false
-    @Published var toast: ToastMessage?
+final class HostsFileManager {
+    var entries: [HostEntry] = []
+    var tags: [HostTag] = []
+    var commentLines: [(index: Int, text: String)] = []
+    var hasUnsavedChanges = false
+    var isApplying = false
+    var isSearchFocused = false
+    var toast: ToastMessage?
+
+    /// Profile metadata (color, shortcut) layered on top of tag-name markers in `/etc/hosts`.
+    /// Synced with `tags` after every parse: new tags → unstyled profile (default color),
+    /// orphan profiles preserved so user metadata survives temporary tag removal.
+    var profiles: [Profile] = []
+
+    /// `nil` means "show all" (legacy v1 behaviour). Non-nil = filter UI to this profile's tag.
+    var activeProfileID: UUID?
 
     private var originalContent = ""
     private let hostsPath = "/etc/hosts"
+    private let profileStore: ProfileStoring
 
-    init() {
-        loadHostsFile()
+    // MARK: - External change detection
+
+    /// `true` when an external tool (Docker, terminal sudo write, etc.) modified
+    /// `/etc/hosts` while we were running. UI shows amber warning + Reload action.
+    /// Cleared after `loadHostsFile()` or user dismissal.
+    var externalChangeDetected = false
+
+    private let fileWatcher = HostsFileWatcher()
+
+    // MARK: - Undo / Redo
+
+    /// Snapshot stacks for undo/redo. Each snapshot captures `entries` only — tags and
+    /// comments derive from entries on serialization, profile metadata is independent.
+    /// Cap stack size to bound memory for very large hosts files.
+    private var undoStack: [[HostEntry]] = []
+    private var redoStack: [[HostEntry]] = []
+    private static let maxUndoDepth = 50
+
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
+
+    /// Push current `entries` onto the undo stack and clear the redo stack. Call BEFORE
+    /// any mutation that should be undoable. Coalesces no-op pushes (same as last snapshot).
+    private func pushUndo() {
+        if let last = undoStack.last, last == entries { return }
+        undoStack.append(entries)
+        if undoStack.count > Self.maxUndoDepth {
+            undoStack.removeFirst(undoStack.count - Self.maxUndoDepth)
+        }
+        redoStack.removeAll()
+    }
+
+    /// Restore previous snapshot. No-op if undo stack is empty.
+    func undo() {
+        guard let snapshot = undoStack.popLast() else { return }
+        redoStack.append(entries)
+        entries = snapshot
+        hasUnsavedChanges = true
+    }
+
+    /// Re-apply a previously undone change. No-op if redo stack is empty.
+    func redo() {
+        guard let snapshot = redoStack.popLast() else { return }
+        undoStack.append(entries)
+        entries = snapshot
+        hasUnsavedChanges = true
+    }
+
+    private func clearUndoStacks() {
+        undoStack.removeAll()
+        redoStack.removeAll()
+    }
+
+    init(profileStore: ProfileStoring = ProfileStore(), autoLoad: Bool = true) {
+        self.profileStore = profileStore
+        self.profiles = profileStore.load()
+        if autoLoad {
+            loadHostsFile()
+            startWatchingHostsFile()
+        }
+    }
+
+    private func startWatchingHostsFile() {
+        fileWatcher.onChange = { [weak self] event in
+            guard let self else { return }
+            // The watcher already runs callbacks on main via DispatchQueue.main.async,
+            // so MainActor isolation is honored here. Set the flag — UI reacts.
+            switch event {
+            case .modified, .deleted:
+                self.externalChangeDetected = true
+            }
+        }
+        fileWatcher.start()
     }
 
     func loadHostsFile() {
@@ -85,6 +166,8 @@ class HostsFileManager: ObservableObject {
             originalContent = content
             parseHostsContent(content)
             hasUnsavedChanges = false
+            externalChangeDetected = false
+            clearUndoStacks()
         } catch {
             showToast("Không thể đọc file /etc/hosts: \(error.localizedDescription)", type: .error)
         }
@@ -179,6 +262,94 @@ class HostsFileManager: ObservableObject {
         entries = newEntries
         commentLines = newCommentLines
         tags = discoveredTagNames.map { HostTag(name: $0) }
+        syncProfilesWithTags()
+    }
+
+    // MARK: - Profile sync
+
+    /// Reconcile `profiles` with `tags`:
+    /// - For each tag without a matching profile: create one with a guessed-from-name color.
+    /// - Orphan profiles (no current tag) are preserved — metadata survives tag removal.
+    /// Persists via `profileStore` after change.
+    private func syncProfilesWithTags() {
+        var changed = false
+        for tag in tags where !profiles.contains(where: { $0.name == tag.name }) {
+            let nextShortcut = (profiles.compactMap(\.shortcutNumber).max() ?? 0) + 1
+            profiles.append(Profile(
+                name: tag.name,
+                color: Self.guessColor(for: tag.name, existing: profiles),
+                shortcutNumber: nextShortcut <= 9 ? nextShortcut : nil
+            ))
+            changed = true
+        }
+        if changed {
+            profileStore.save(profiles)
+        }
+    }
+
+    /// Heuristic color picker. Honors common semantic names (release/production/master),
+    /// otherwise rotates through the palette based on existing profile count.
+    private static func guessColor(for name: String, existing: [Profile]) -> ProfileColor {
+        let key = name.lowercased()
+        if key.contains("release") { return .purple }
+        if key.contains("prod")    { return .green }
+        if key.contains("master")  { return .amber }
+        if key.contains("dev") || key.contains("local") { return .blue }
+        if key.contains("test") || key.contains("staging") { return .red }
+        let palette = ProfileColor.allCases
+        return palette[existing.count % palette.count]
+    }
+
+    // MARK: - Profile CRUD
+
+    /// Switch active profile (or pass `nil` to show all). Does not modify hosts file.
+    func switchProfile(to id: UUID?) {
+        activeProfileID = id
+    }
+
+    /// Add a new profile with auto-assigned shortcut. Does not create a tag in hosts file
+    /// (that happens when entries are tagged).
+    func addProfile(name: String, color: ProfileColor) -> Profile? {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let candidate = Profile(name: trimmed, color: color)
+        guard candidate.isNameValid,
+              !profiles.contains(where: { $0.name.lowercased() == trimmed.lowercased() })
+        else { return nil }
+        var profile = candidate
+        profile.shortcutNumber = (profiles.compactMap(\.shortcutNumber).max() ?? 0) + 1
+        profiles.append(profile)
+        profileStore.save(profiles)
+        return profile
+    }
+
+    /// Remove profile metadata. Caller is responsible for untagging entries first if desired.
+    func removeProfile(id: UUID) {
+        profiles.removeAll { $0.id == id }
+        if activeProfileID == id { activeProfileID = nil }
+        profileStore.save(profiles)
+    }
+
+    /// Rename a profile. Updates both `Profile.name` and any `HostEntry.tag` references,
+    /// then persists profile metadata.
+    @discardableResult
+    func renameProfile(id: UUID, to newName: String) -> Bool {
+        let trimmed = newName.trimmingCharacters(in: .whitespaces)
+        guard let idx = profiles.firstIndex(where: { $0.id == id }) else { return false }
+        let candidate = Profile(name: trimmed, color: profiles[idx].color)
+        guard candidate.isNameValid,
+              !profiles.contains(where: { $0.id != id && $0.name.lowercased() == trimmed.lowercased() })
+        else { return false }
+        let oldName = profiles[idx].name
+        profiles[idx].name = trimmed
+        for i in entries.indices where entries[i].tag == oldName {
+            entries[i].tag = trimmed
+        }
+        if let tagIdx = tags.firstIndex(where: { $0.name == oldName }) {
+            tags[tagIdx].name = trimmed
+        }
+        profileStore.save(profiles)
+        hasUnsavedChanges = true
+        return true
     }
 
     func generateHostsContent() -> String {
@@ -246,6 +417,7 @@ class HostsFileManager: ObservableObject {
     }
 
     func addEntry(ip: String, hostname: String, comment: String, tag: String? = nil) {
+        pushUndo()
         let entry = HostEntry(ip: ip, hostname: hostname, comment: comment, isEnabled: true, tag: tag)
         entries.append(entry)
         hasUnsavedChanges = true
@@ -254,6 +426,7 @@ class HostsFileManager: ObservableObject {
 
     func updateEntry(id: UUID, ip: String, hostname: String, comment: String, tag: String? = nil) {
         if let index = entries.firstIndex(where: { $0.id == id }) {
+            pushUndo()
             entries[index].ip = ip
             entries[index].hostname = hostname
             entries[index].comment = comment
@@ -283,6 +456,7 @@ class HostsFileManager: ObservableObject {
             showToast("Tag \"\(trimmed)\" đã tồn tại", type: .error)
             return
         }
+        pushUndo()
         if let tagIndex = tags.firstIndex(where: { $0.name == oldName }) {
             tags[tagIndex].name = trimmed
         }
@@ -297,6 +471,7 @@ class HostsFileManager: ObservableObject {
     }
 
     func deleteTag(name: String) {
+        pushUndo()
         tags.removeAll { $0.name == name }
         var updated = entries
         for i in updated.indices where updated[i].tag == name {
@@ -308,6 +483,7 @@ class HostsFileManager: ObservableObject {
     }
 
     func toggleTag(name: String) {
+        pushUndo()
         let state = tagState(name: name)
         // mixed or allEnabled → turn all off; allDisabled → turn all on
         let newState = state == .allDisabled
@@ -340,6 +516,7 @@ class HostsFileManager: ObservableObject {
 
     func moveEntryToTag(entryId: UUID, tag: String?) {
         if let index = entries.firstIndex(where: { $0.id == entryId }) {
+            pushUndo()
             entries[index].tag = tag
             hasUnsavedChanges = true
         }
@@ -350,6 +527,7 @@ class HostsFileManager: ObservableObject {
     }
 
     func deleteEntry(id: UUID) {
+        pushUndo()
         entries.removeAll { $0.id == id }
         hasUnsavedChanges = true
     }
@@ -357,6 +535,7 @@ class HostsFileManager: ObservableObject {
     @discardableResult
     func duplicateEntry(id: UUID) -> HostEntry? {
         guard let idx = entries.firstIndex(where: { $0.id == id }) else { return nil }
+        pushUndo()
         let source = entries[idx]
         let copy = HostEntry(
             ip: source.ip,
@@ -373,6 +552,7 @@ class HostsFileManager: ObservableObject {
 
     func toggleEntry(id: UUID) {
         if let index = entries.firstIndex(where: { $0.id == id }) {
+            pushUndo()
             entries[index].isEnabled.toggle()
             hasUnsavedChanges = true
         }
@@ -454,6 +634,8 @@ class HostsFileManager: ObservableObject {
 
         let command = "cp \(tempPath) /etc/hosts && rm -f \(tempPath) && dscacheutil -flushcache && killall -HUP mDNSResponder 2>/dev/null; true"
 
+        // Suspend watcher so our own write doesn't show as "external change".
+        fileWatcher.suspend()
         runPrivilegedCommand(command) { [weak self] success, error in
             guard let self = self else { return }
             self.isApplying = false
@@ -461,15 +643,22 @@ class HostsFileManager: ObservableObject {
             if success {
                 self.originalContent = content
                 self.hasUnsavedChanges = false
+                self.externalChangeDetected = false
+                self.redoStack.removeAll()  // post-apply redo would re-create stale state
                 self.showToast("Đã áp dụng thành công!", type: .success)
             } else if let error = error {
                 self.showToast("Lỗi: \(error)", type: .error)
+            }
+            // Resume after a short delay — disk events trail the cp by a few ms.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                self.fileWatcher.resume()
             }
             // error == nil means user cancelled — do nothing
         }
     }
 
     func replaceContentFromRawText(_ text: String) {
+        pushUndo()
         parseHostsContent(text)
         hasUnsavedChanges = true
     }
@@ -491,6 +680,7 @@ class HostsFileManager: ObservableObject {
 
         let command = "cp \(tempPath) /etc/hosts && rm -f \(tempPath) && dscacheutil -flushcache && killall -HUP mDNSResponder 2>/dev/null; true"
 
+        fileWatcher.suspend()
         runPrivilegedCommand(command) { [weak self] success, error in
             guard let self = self else { return }
             self.isApplying = false
@@ -499,9 +689,13 @@ class HostsFileManager: ObservableObject {
                 self.originalContent = content
                 self.parseHostsContent(content)
                 self.hasUnsavedChanges = false
+                self.externalChangeDetected = false
                 self.showToast("Đã áp dụng thành công!", type: .success)
             } else if let error = error {
                 self.showToast("Lỗi: \(error)", type: .error)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                self.fileWatcher.resume()
             }
         }
     }
@@ -546,6 +740,7 @@ class HostsFileManager: ObservableObject {
 
             let parts = withoutComment.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
             if parts.count >= 2 && isValidIP(parts[0]) && !hostnameExists(parts[1]) {
+                if added == 0 { pushUndo() }  // single snapshot for whole import
                 entries.append(HostEntry(ip: parts[0], hostname: parts[1], comment: inlineComment))
                 added += 1
             }

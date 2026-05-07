@@ -1,13 +1,14 @@
 import Foundation
 import SwiftUI
 
+@Observable
 @MainActor
-final class EnvFileManager: ObservableObject {
-    @Published var repos: [EnvRepo] = []
-    @Published var selectedRepoId: UUID?
-    @Published var selectedFilePath: String?
-    @Published var loadedFiles: [UUID: [EnvFile]] = [:]
-    @Published var toast: ToastMessage?
+final class EnvFileManager {
+    var repos: [EnvRepo] = []
+    var selectedRepoId: UUID?
+    var selectedFilePath: String?
+    var loadedFiles: [UUID: [EnvFile]] = [:]
+    var toast: ToastMessage?
 
     private let storageURL: URL
 
@@ -162,6 +163,23 @@ final class EnvFileManager: ObservableObject {
             let entries = EnvParser.parse(content)
             return EnvFile(relativePath: relativePath, entries: entries, hasUnsavedChanges: false)
         }.value
+    }
+
+    /// Convenience for the StatusBar Apply button: applies whichever env file is currently
+    /// selected (selectedRepoId + selectedFilePath). No-op when nothing is selected or no
+    /// pending changes.
+    func applyCurrentSelection() {
+        guard
+            let repoId = selectedRepoId,
+            let path = selectedFilePath,
+            let file = loadedFile(repoId: repoId, relativePath: path),
+            file.hasUnsavedChanges
+        else { return }
+        do {
+            try applyChanges(repoId: repoId, file: file)
+        } catch {
+            showToast("Lỗi áp dụng: \(error.localizedDescription)", type: .error)
+        }
     }
 
     func applyChanges(repoId: UUID, file: EnvFile) throws {

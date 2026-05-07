@@ -6,7 +6,7 @@ enum ViewMode {
 }
 
 struct HostsView: View {
-    @EnvironmentObject var hostsManager: HostsFileManager
+    @Environment(HostsFileManager.self) private var hostsManager
     @State private var sidebarSelection: SidebarSelection? = .filter(.all)
     @State private var searchText = ""
     @State private var showAddSheet = false
@@ -16,31 +16,40 @@ struct HostsView: View {
     @State private var showDeleteConfirm = false
     @State private var viewMode: ViewMode = .table
     @State private var rawText = ""
+    @FocusState private var isSearchFieldFocused: Bool
 
     var body: some View {
-        NavigationSplitView {
+        @Bindable var hostsManager = hostsManager
+        // HStack-based layout instead of NavigationSplitView — macOS 26 NSV
+        // imposes a floating Liquid-Glass sidebar panel with insets we can't
+        // suppress. We need flush, edge-to-edge sidebar/detail like a desktop
+        // IDE, so manually compose with HStack + Divider.
+        return HStack(spacing: 0) {
             SidebarView(selection: $sidebarSelection, hostsManager: hostsManager)
-        } detail: {
-            ZStack {
-                if viewMode == .text {
-                    rawTextEditorView
-                } else {
-                    entriesListView
-                }
-
-                if let toast = hostsManager.toast {
-                    VStack {
-                        Spacer()
-                        ToastView(toast: toast)
-                            .padding(.bottom, 16)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                .frame(width: 220)
+            Divider()
+            VStack(spacing: 0) {
+                detailHeaderBar
+                ZStack {
+                    if viewMode == .text {
+                        rawTextEditorView
+                    } else {
+                        entriesListView
                     }
-                    .animation(.spring(response: 0.4), value: hostsManager.toast)
+
+                    if let toast = hostsManager.toast {
+                        VStack {
+                            Spacer()
+                            ToastView(toast: toast)
+                                .padding(.bottom, 16)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                        .animation(.spring(response: 0.4), value: hostsManager.toast)
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .modifier(SearchableWithFocus(searchText: $searchText, isPresented: $hostsManager.isSearchFocused))
-        .toolbar { toolbarContent }
         .sheet(isPresented: $showAddSheet) {
             EntryFormSheet(hostsManager: hostsManager, mode: .add)
         }
@@ -60,16 +69,28 @@ struct HostsView: View {
         }
     }
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        // Left: secondary view controls — tách riêng để toolbar bên phải sạch chỉ chứa primary actions
-        ToolbarItemGroup(placement: .navigation) {
-            Picker("Mode", selection: $viewMode) {
+    /// Inline detail header (replaces the old `.toolbar` items now that MainWindowView owns chrome).
+    /// Reference: docs/mockup-reference.md → "Detail content area" → "Header bar".
+    private var detailHeaderBar: some View {
+        HStack(spacing: DSSpacing.p3) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Hosts")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color.dsTextPrimary)
+                detailHeaderSubtitle
+            }
+
+            Spacer()
+
+            inlineSearchField
+
+            Picker("", selection: $viewMode) {
                 Image(systemName: "tablecells").tag(ViewMode.table)
                 Image(systemName: "doc.plaintext").tag(ViewMode.text)
             }
             .pickerStyle(.segmented)
-            .help("Chuyển đổi chế độ xem")
+            .labelsHidden()
+            .frame(width: 88)
             .onChange(of: viewMode) { newValue in
                 if newValue == .text {
                     rawText = hostsManager.generateHostsContent()
@@ -81,17 +102,22 @@ struct HostsView: View {
                     }
                 }
             }
-        }
 
-        // Right: primary actions
-        ToolbarItemGroup(placement: .primaryAction) {
             Button {
                 showAddSheet = true
             } label: {
                 Image(systemName: "plus")
+                    .font(.system(size: 12))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                            .strokeBorder(Color.dsBorderSecondary, lineWidth: 0.5)
+                    )
             }
-            .help("Thêm entry mới")
+            .buttonStyle(.plain)
             .disabled(viewMode == .text)
+            .help("Thêm entry mới")
 
             Menu {
                 Section("Import / Export") {
@@ -123,39 +149,73 @@ struct HostsView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.dsTextSecondary)
             }
             .menuStyle(.borderlessButton)
-            .help("Tuỳ chọn khác")
+            .fixedSize()
             .disabled(viewMode == .text)
-
-            applyButton
+            .help("Tuỳ chọn khác")
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, DSSpacing.p3)
+        .padding(.bottom, DSSpacing.p2)
+        .background(Color.dsBackground)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.dsBorderTertiary).frame(height: 0.5)
         }
     }
 
-    private var applyButton: some View {
-        Button {
-            if viewMode == .text {
-                hostsManager.applyRawText(rawText)
-            } else {
-                hostsManager.applyChanges()
-            }
-        } label: {
-            HStack(spacing: 6) {
-                if hostsManager.isApplying {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: hostsManager.hasUnsavedChanges ? "arrow.up.circle.fill" : "checkmark.circle")
-                        .modifier(PulseEffectModifier(isActive: hostsManager.hasUnsavedChanges))
-                }
-                Text(hostsManager.isApplying ? "Đang lưu" : "Áp dụng")
-                    .fontWeight(.medium)
+    private var inlineSearchField: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.dsTextTertiary)
+            TextField("Tìm hostname, IP…", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 11.5))
+                .frame(width: 200)
+                .focused($isSearchFieldFocused)
+                .accessibilityIdentifier("hosts-search-field")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .fill(Color.white.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .strokeBorder(Color.dsBorderSecondary, lineWidth: 0.5)
+        )
+        .onChange(of: hostsManager.isSearchFocused) { newValue in
+            if newValue {
+                isSearchFieldFocused = true
+                hostsManager.isSearchFocused = false
             }
         }
-        .buttonStyle(.borderedProminent)
-        .tint(hostsManager.hasUnsavedChanges ? .accentColor : .secondary)
-        .disabled(!hostsManager.hasUnsavedChanges || hostsManager.isApplying)
-        .keyboardShortcut("s", modifiers: .command)
-        .animation(.easeInOut(duration: 0.2), value: hostsManager.hasUnsavedChanges)
+    }
+
+    /// Subtitle with colored dots inline: ●6 enabled · ●1 disabled (matches mockup).
+    private var detailHeaderSubtitle: some View {
+        let enabled = hostsManager.entries.filter(\.isEnabled).count
+        let disabled = hostsManager.entries.count - enabled
+        return HStack(spacing: 6) {
+            HStack(spacing: 4) {
+                Circle().fill(Color.dsResolvedGreen).frame(width: 5, height: 5)
+                Text("\(enabled) enabled")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+            Text("·")
+                .foregroundStyle(Color.dsTextTertiary)
+            HStack(spacing: 4) {
+                Circle().fill(Color.dsTextTertiary).frame(width: 5, height: 5)
+                Text("\(disabled) disabled")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+        }
     }
 
     private var rawTextEditorView: some View {
@@ -206,6 +266,8 @@ struct HostsView: View {
         return nil
     }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private var entriesListView: some View {
         let filtered = hostsManager.filteredEntries(
             filter: currentFilter,
@@ -220,6 +282,8 @@ struct HostsView: View {
                 entriesTable(filtered)
             }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: currentTag)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: currentFilter)
     }
 
     private var emptyView: some View {
@@ -235,117 +299,45 @@ struct HostsView: View {
     }
 
     private func entriesTable(_ filtered: [HostEntry]) -> some View {
-        Table(filtered) {
-            TableColumn("") { entry in
-                Toggle("", isOn: Binding(
-                    get: { entry.isEnabled },
-                    set: { _ in hostsManager.toggleEntry(id: entry.id) }
-                ))
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .contentShape(Rectangle())
-                .contextMenu { entryContextMenu(entry: entry) }
-            }
-            .width(50)
-
-            TableColumn("IP") { entry in
-                Text(entry.ip)
-                    .font(.system(.body, design: .monospaced).weight(.regular))
-                    .foregroundStyle(ipColor(for: entry))
-                    .opacity(entry.isEnabled ? 1.0 : 0.45)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .contextMenu { entryContextMenu(entry: entry) }
-            }
-            .width(min: 100, ideal: 140)
-
-            TableColumn("Hostname") { entry in
-                Text(entry.hostname)
-                    .font(.system(.body, design: .monospaced).weight(entry.isEnabled ? .medium : .regular))
-                    .foregroundStyle(.primary)
-                    .opacity(entry.isEnabled ? 1.0 : 0.5)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .contextMenu { entryContextMenu(entry: entry) }
-            }
-            .width(min: 150, ideal: 250)
-
-            TableColumn("Comment") { entry in
-                Text(entry.comment)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .opacity(entry.isEnabled ? 1.0 : 0.5)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .contextMenu { entryContextMenu(entry: entry) }
-            }
-            .width(min: 80, ideal: 150)
-
-            TableColumn("Tag") { entry in
-                Group {
-                    if let tag = entry.tag {
-                        TagPill(name: tag)
-                    }
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                hostsListHeader
+                ForEach(Array(filtered.enumerated()), id: \.element.id) { index, entry in
+                    HostRowView(
+                        entry: entry,
+                        hostsManager: hostsManager,
+                        isAlternate: index.isMultiple(of: 2),
+                        onEdit: { editingEntry = entry },
+                        onDelete: {
+                            deleteTarget = entry
+                            showDeleteConfirm = true
+                        }
+                    )
                 }
+            }
+        }
+        .background(Color.dsBackground)
+    }
+
+    /// Column titles row above the host list. Widths defined in `HostRowLayout`.
+    private var hostsListHeader: some View {
+        HStack(spacing: DSSpacing.p2) {
+            Spacer().frame(width: HostRowLayout.toggle)
+            Text("IP")
+                .frame(width: HostRowLayout.ip, alignment: .leading)
+            Text("Hostname")
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .contextMenu { entryContextMenu(entry: entry) }
-            }
-            .width(min: 60, ideal: 100)
-
-            TableColumn("") { entry in
-                EntryActionButtons(
-                    onEdit: { editingEntry = entry },
-                    onDelete: {
-                        deleteTarget = entry
-                        showDeleteConfirm = true
-                    }
-                )
-                .contextMenu { entryContextMenu(entry: entry) }
-            }
-            .width(60)
+            Text("Source")
+                .frame(width: HostRowLayout.source, alignment: .leading)
+            Spacer().frame(width: HostRowLayout.menu)
         }
-        .tableStyle(.bordered(alternatesRowBackgrounds: true))
-    }
-
-    /// Blocking entries (0.0.0.0 hoặc 127.0.0.1 → non-localhost) hiện đỏ; localhost/loopback xanh nhạt; còn lại xanh primary.
-    private func ipColor(for entry: HostEntry) -> Color {
-        if entry.ip == "0.0.0.0" { return .red }
-        if entry.ip == "127.0.0.1" && entry.hostname != "localhost" { return .red }
-        if entry.ip == "127.0.0.1" || entry.ip == "::1" { return .secondary }
-        return .green
-    }
-
-    @ViewBuilder
-    private func entryContextMenu(entry: HostEntry) -> some View {
-        Button {
-            editingEntry = entry
-        } label: {
-            Label("Sửa", systemImage: "pencil")
-        }
-
-        Button {
-            hostsManager.toggleEntry(id: entry.id)
-        } label: {
-            Label(entry.isEnabled ? "Tắt" : "Bật", systemImage: entry.isEnabled ? "pause.circle" : "play.circle")
-        }
-
-        Button {
-            if let copy = hostsManager.duplicateEntry(id: entry.id) {
-                editingEntry = copy
-            }
-        } label: {
-            Label("Nhân đôi", systemImage: "plus.square.on.square")
-        }
-
-        Divider()
-
-        Button(role: .destructive) {
-            deleteTarget = entry
-            showDeleteConfirm = true
-        } label: {
-            Label("Xóa", systemImage: "trash")
+        .font(.dsLabel)
+        .foregroundStyle(Color.dsTextTertiary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, DSSpacing.p2)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.dsBorderSecondary).frame(height: 0.5)
         }
     }
+
 }
