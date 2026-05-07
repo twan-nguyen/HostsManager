@@ -5,146 +5,266 @@ enum SidebarSelection: Hashable {
     case tag(String)
 }
 
+/// Profile-first sidebar redesigned in v2: Profiles section on top, filters below, tools at bottom.
+/// Reference: docs/mockup-reference.md → "Sidebar".
 struct SidebarView: View {
     @Binding var selection: SidebarSelection?
     @Bindable var hostsManager: HostsFileManager
 
-    @State private var showCreateTagAlert = false
-    @State private var newTagName = ""
-    @State private var showRenameTagAlert = false
-    @State private var renameTagOldName = ""
-    @State private var renameTagNewName = ""
-    @State private var showDeleteTagConfirm = false
-    @State private var deleteTagTarget = ""
+    @State private var showCreateProfileSheet = false
+    @State private var newProfileName = ""
+    @State private var newProfileColor: ProfileColor = .purple
+    @State private var renameTarget: Profile?
+    @State private var renameBuffer = ""
+    @State private var deleteTarget: Profile?
 
     var body: some View {
-        List(selection: $selection) {
-            Section("Bộ lọc") {
-                ForEach(SidebarFilter.allCases) { filter in
-                    let count = hostsManager.entryCount(for: filter)
-                    Label {
-                        HStack {
-                            Text(filter.rawValue)
-                            Spacer()
-                            Text("\(count)")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                                .modifier(NumericTransitionModifier())
-                                .animation(.default, value: count)
-                        }
-                    } icon: {
-                        Image(systemName: filter.icon)
-                    }
-                    .tag(SidebarSelection.filter(filter))
+        ScrollView {
+            VStack(alignment: .leading, spacing: DSSpacing.p4) {
+                profilesSection
+                filterSection
+                if hostsManager.hasUnsavedChanges {
+                    unsavedChangesBanner
                 }
             }
-
-            Section("Tags") {
-                ForEach(hostsManager.tags) { tag in
-                    let tagCount = hostsManager.tagEntryCount(name: tag.name)
-                    HStack {
-                        Label {
-                            HStack {
-                                Text(tag.name)
-                                Spacer()
-                                Text("\(tagCount)")
-                                    .foregroundStyle(.secondary)
-                                    .font(.caption)
-                                    .modifier(NumericTransitionModifier())
-                                    .animation(.default, value: tagCount)
-                            }
-                        } icon: {
-                            Image(systemName: "tag.fill")
-                                .foregroundStyle(.tint)
-                        }
-
-                        TagToggleButton(state: hostsManager.tagState(name: tag.name)) {
-                            hostsManager.toggleTag(name: tag.name)
-                        }
-                    }
-                    .tag(SidebarSelection.tag(tag.name))
-                    .contextMenu {
-                        Button {
-                            renameTagOldName = tag.name
-                            renameTagNewName = tag.name
-                            showRenameTagAlert = true
-                        } label: {
-                            Label("Đổi tên", systemImage: "pencil")
-                        }
-                        Button(role: .destructive) {
-                            deleteTagTarget = tag.name
-                            showDeleteTagConfirm = true
-                        } label: {
-                            Label("Xóa tag", systemImage: "trash")
-                        }
-                    }
-                }
-
-                Button {
-                    newTagName = ""
-                    showCreateTagAlert = true
-                } label: {
-                    Label("Tạo tag mới...", systemImage: "plus.circle")
-                        .foregroundStyle(.tint)
-                }
-                .buttonStyle(.plain)
-            }
-
-            if hostsManager.hasUnsavedChanges {
-                Section {
-                    Label {
-                        Text("Có thay đổi chưa lưu")
-                            .foregroundStyle(.orange)
-                    } icon: {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                            .modifier(PulseEffectModifier(isActive: true))
-                    }
-                }
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
+            .padding(.horizontal, DSSpacing.p2)
+            .padding(.vertical, DSSpacing.p3)
         }
-        .listStyle(.sidebar)
-        .animation(.easeInOut(duration: 0.25), value: hostsManager.hasUnsavedChanges)
-        .navigationSplitViewColumnWidth(min: 180, ideal: 240)
-        .alert("Tạo tag mới", isPresented: $showCreateTagAlert) {
-            TextField("Tên tag", text: $newTagName)
-            Button("Tạo") {
-                hostsManager.createTag(name: newTagName)
-                newTagName = ""
-            }
-            Button("Hủy", role: .cancel) {
-                newTagName = ""
-            }
-        }
-        .alert("Đổi tên tag", isPresented: $showRenameTagAlert) {
-            TextField("Tên mới", text: $renameTagNewName)
+        .background(Color.dsBackgroundSidebar)
+        .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
+        .sheet(isPresented: $showCreateProfileSheet) { createProfileSheet }
+        .alert(
+            "Đổi tên profile",
+            isPresented: Binding(get: { renameTarget != nil }, set: { if !$0 { renameTarget = nil } })
+        ) {
+            TextField("Tên mới", text: $renameBuffer)
             Button("Đổi tên") {
-                hostsManager.renameTag(oldName: renameTagOldName, newName: renameTagNewName)
-                if case .tag(renameTagOldName) = selection {
-                    selection = .tag(renameTagNewName)
+                if let target = renameTarget {
+                    hostsManager.renameProfile(id: target.id, to: renameBuffer)
+                    if case .tag(target.name) = selection {
+                        selection = .tag(renameBuffer)
+                    }
                 }
-                renameTagOldName = ""
-                renameTagNewName = ""
+                renameTarget = nil
             }
-            Button("Hủy", role: .cancel) {
-                renameTagOldName = ""
-                renameTagNewName = ""
+            Button("Huỷ", role: .cancel) { renameTarget = nil }
+        }
+        .alert(
+            "Xoá profile?",
+            isPresented: Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }),
+            presenting: deleteTarget
+        ) { target in
+            Button("Xoá", role: .destructive) {
+                if case .tag(target.name) = selection { selection = .filter(.all) }
+                hostsManager.removeProfile(id: target.id)
+            }
+            Button("Huỷ", role: .cancel) { deleteTarget = nil }
+        } message: { target in
+            Text("Xoá metadata profile \"\(target.name)\"? Entries trong /etc/hosts không bị xoá.")
+        }
+    }
+
+    // MARK: - Profiles section
+
+    private var profilesSection: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.p2) {
+            sectionHeader("Profiles")
+
+            ForEach(hostsManager.profiles, id: \.id) { profile in
+                profileRow(profile)
+            }
+
+            Button {
+                newProfileName = ""
+                newProfileColor = .purple
+                showCreateProfileSheet = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 11))
+                    Text("Profile mới")
+                        .font(.system(size: 10.5))
+                }
+                .foregroundStyle(Color.dsTextTertiary)
+                .padding(.horizontal, DSSpacing.p2)
+                .padding(.vertical, 5)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private func profileRow(_ profile: Profile) -> some View {
+        let isActive = hostsManager.activeProfileID == profile.id
+        let count = hostsManager.tagEntryCount(name: profile.name)
+
+        Button {
+            if isActive {
+                hostsManager.switchProfile(to: nil)
+                selection = .filter(.all)
+            } else {
+                hostsManager.switchProfile(to: profile.id)
+                selection = .tag(profile.name)
+            }
+        } label: {
+            HStack(spacing: 8) {
+                StatusDot(color: .ds(profile.color), size: 6, glow: isActive)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(profile.name)
+                        .font(.system(size: 11.5, weight: isActive ? .medium : .regular))
+                        .foregroundStyle(Color.dsTextPrimary)
+                    Text("\(count) host\(count == 1 ? "" : "s")\(isActive ? " active" : "")")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(Color.dsTextTertiary)
+                }
+                Spacer(minLength: 0)
+                if isActive {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Color.ds(profile.color))
+                } else if let n = profile.shortcutNumber, n <= 9 {
+                    Text("⌘\(n)")
+                        .font(.dsMonoTiny)
+                        .foregroundStyle(Color.dsTextTertiary)
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(profileRowBackground(profile, isActive: isActive))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .strokeBorder(
+                        isActive ? Color.ds(profile.color).opacity(0.35) : Color.clear,
+                        lineWidth: 0.5
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                renameTarget = profile
+                renameBuffer = profile.name
+            } label: { Label("Đổi tên", systemImage: "pencil") }
+            Button(role: .destructive) {
+                deleteTarget = profile
+            } label: { Label("Xoá profile", systemImage: "trash") }
+        }
+    }
+
+    @ViewBuilder
+    private func profileRowBackground(_ profile: Profile, isActive: Bool) -> some View {
+        if isActive {
+            RoundedRectangle(cornerRadius: 7)
+                .fill(LinearGradient(
+                    colors: [
+                        Color.ds(profile.color).opacity(0.18),
+                        Color.ds(profile.color).opacity(0.08),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+        } else {
+            RoundedRectangle(cornerRadius: 7).fill(Color.clear)
+        }
+    }
+
+    // MARK: - Filter section
+
+    private var filterSection: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            sectionHeader("Bộ lọc")
+            ForEach(SidebarFilter.allCases) { filter in
+                filterRow(filter)
             }
         }
-        .alert("Xác nhận xóa tag", isPresented: $showDeleteTagConfirm) {
-            Button("Xóa", role: .destructive) {
-                if case .tag(deleteTagTarget) = selection {
-                    selection = .filter(.all)
-                }
-                hostsManager.deleteTag(name: deleteTagTarget)
-                deleteTagTarget = ""
+    }
+
+    private func filterRow(_ filter: SidebarFilter) -> some View {
+        let count = hostsManager.entryCount(for: filter)
+        let isSelected = isFilterSelected(filter)
+        return Button {
+            selection = .filter(filter)
+            hostsManager.switchProfile(to: nil)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: filter.icon)
+                    .font(.system(size: 11))
+                    .frame(width: 14)
+                Text(filter.rawValue)
+                    .font(.system(size: 11.5))
+                Spacer()
+                Text("\(count)")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextTertiary)
             }
-            Button("Hủy", role: .cancel) {
-                deleteTagTarget = ""
-            }
-        } message: {
-            Text("Xóa tag \"\(deleteTagTarget)\"? Các entry trong tag sẽ trở thành không có tag.")
+            .foregroundStyle(Color.dsTextPrimary)
+            .dsSidebarItem(isSelected: isSelected)
         }
+        .buttonStyle(.plain)
+    }
+
+    private func isFilterSelected(_ filter: SidebarFilter) -> Bool {
+        if case .filter(let f) = selection, f == filter { return true }
+        return false
+    }
+
+    // MARK: - Header + banner
+
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.system(size: 9.5, weight: .medium))
+            .tracking(0.6)
+            .foregroundStyle(Color.dsTextTertiary)
+            .padding(.horizontal, 6)
+            .padding(.bottom, 4)
+    }
+
+    private var unsavedChangesBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Color.dsProfileAmber)
+                .font(.system(size: 10))
+            Text("Có thay đổi chưa lưu")
+                .font(.system(size: 10.5))
+                .foregroundStyle(Color.dsTextSecondary)
+        }
+        .padding(.horizontal, DSSpacing.p2)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.sm)
+                .fill(Color.dsProfileAmber.opacity(0.08))
+        )
+    }
+
+    // MARK: - Sheets
+
+    private var createProfileSheet: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.p3) {
+            Text("Tạo profile mới")
+                .font(.dsHeading)
+            TextField("Tên profile", text: $newProfileName)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Text("Màu").font(.dsCaption)
+                Picker("", selection: $newProfileColor) {
+                    ForEach(ProfileColor.allCases) { color in
+                        Text(color.displayName).tag(color)
+                    }
+                }
+                .labelsHidden()
+            }
+            HStack {
+                Spacer()
+                Button("Huỷ") { showCreateProfileSheet = false }
+                Button("Tạo") {
+                    _ = hostsManager.addProfile(name: newProfileName, color: newProfileColor)
+                    showCreateProfileSheet = false
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(newProfileName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(DSSpacing.p4)
+        .frame(width: 320)
     }
 }

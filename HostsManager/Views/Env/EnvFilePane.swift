@@ -21,6 +21,7 @@ struct EnvFilePane: View {
     @State private var showApplyConfirm: Bool = false
     @State private var viewMode: ViewMode = .table
     @State private var rawText: String = ""
+    @FocusState private var isSearchFieldFocused: Bool
 
     private var currentFile: EnvFile? {
         guard let path = selectedFilePath else { return nil }
@@ -33,12 +34,12 @@ struct EnvFilePane: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            detailHeaderBar
             fileTabBar
             Divider()
             mainContent
         }
-        .modifier(SearchableWithFocus(searchText: $searchText, isPresented: $isSearchFocused))
-        .toolbar { toolbarContent }
+        .toolbar(.hidden, for: .windowToolbar)
         // .task(id:) chạy mỗi khi view appear hoặc repo.id đổi, với `self` hiện tại
         // (.onAppear + .onChange capture self cũ → đọc repo.path sai khi user click repo khác).
         .task(id: repo.id) {
@@ -93,33 +94,50 @@ struct EnvFilePane: View {
         }
     }
 
-    // MARK: - Toolbar
+    // MARK: - Detail header (replaces window toolbar — same pattern as HostsView)
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        // Left: secondary view controls
-        ToolbarItemGroup(placement: .navigation) {
-            Picker("Mode", selection: $viewMode) {
+    private var detailHeaderBar: some View {
+        HStack(spacing: DSSpacing.p3) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(repo.name)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color.dsTextPrimary)
+                Text(headerSubtitleText)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+
+            Spacer()
+
+            inlineSearchField
+
+            Picker("", selection: $viewMode) {
                 Image(systemName: "tablecells").tag(ViewMode.table)
                 Image(systemName: "doc.plaintext").tag(ViewMode.text)
             }
             .pickerStyle(.segmented)
-            .help("Chuyển đổi chế độ xem")
+            .labelsHidden()
+            .frame(width: 88)
             .disabled(currentFile == nil)
             .onChange(of: viewMode) { newValue in
                 syncModeChange(to: newValue)
             }
-        }
 
-        // Right: primary actions
-        ToolbarItemGroup(placement: .primaryAction) {
             Button {
                 showAddSheet = true
             } label: {
                 Image(systemName: "plus")
+                    .font(.system(size: 12))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                            .strokeBorder(Color.dsBorderSecondary, lineWidth: 0.5)
+                    )
             }
-            .help("Thêm key mới")
+            .buttonStyle(.plain)
             .disabled(currentFile == nil || viewMode == .text)
+            .help("Thêm key mới")
 
             Menu {
                 if !repo.profiles.isEmpty {
@@ -158,31 +176,51 @@ struct EnvFilePane: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.dsTextSecondary)
             }
             .menuStyle(.borderlessButton)
-            .help("Tuỳ chọn khác")
+            .fixedSize()
             .disabled(viewMode == .text)
-
-            applyButton
+            .help("Tuỳ chọn khác")
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, DSSpacing.p3)
+        .padding(.bottom, DSSpacing.p2)
+        .background(Color.dsBackground)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.dsBorderTertiary).frame(height: 0.5)
         }
     }
 
-    private var applyButton: some View {
-        Button {
-            apply()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: hasUnsavedChanges ? "arrow.up.circle.fill" : "checkmark.circle")
-                    .modifier(PulseEffectModifier(isActive: hasUnsavedChanges))
-                Text("Áp dụng")
-                    .fontWeight(.medium)
-            }
+    private var inlineSearchField: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.dsTextTertiary)
+            TextField("Tìm key, value…", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 11.5))
+                .frame(width: 200)
+                .focused($isSearchFieldFocused)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(hasUnsavedChanges ? .accentColor : .secondary)
-        .disabled(!hasUnsavedChanges)
-        .keyboardShortcut("s", modifiers: .command)
-        .animation(.easeInOut(duration: 0.2), value: hasUnsavedChanges)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .fill(Color.white.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .strokeBorder(Color.dsBorderSecondary, lineWidth: 0.5)
+        )
+    }
+
+    private var headerSubtitleText: String {
+        guard let file = currentFile else { return "Chưa chọn file" }
+        let total = file.entries.filter { !$0.isBlankOrComment }.count
+        let active = file.entries.filter { !$0.isBlankOrComment && $0.isEnabled }.count
+        return "\(file.relativePath) · \(active)/\(total) keys"
     }
 
     // MARK: - File tabs

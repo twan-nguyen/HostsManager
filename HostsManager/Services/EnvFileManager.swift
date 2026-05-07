@@ -165,6 +165,23 @@ final class EnvFileManager {
         }.value
     }
 
+    /// Convenience for the StatusBar Apply button: applies whichever env file is currently
+    /// selected (selectedRepoId + selectedFilePath). No-op when nothing is selected or no
+    /// pending changes.
+    func applyCurrentSelection() {
+        guard
+            let repoId = selectedRepoId,
+            let path = selectedFilePath,
+            let file = loadedFile(repoId: repoId, relativePath: path),
+            file.hasUnsavedChanges
+        else { return }
+        do {
+            try applyChanges(repoId: repoId, file: file)
+        } catch {
+            showToast("Lỗi áp dụng: \(error.localizedDescription)", type: .error)
+        }
+    }
+
     func applyChanges(repoId: UUID, file: EnvFile) throws {
         guard let repo = repos.first(where: { $0.id == repoId }) else {
             throw EnvError.repoNotFound

@@ -91,7 +91,7 @@ struct MainWindowView: View {
     private func handleApply() {
         switch selectedTab {
         case .hosts: hostsManager.applyChanges()
-        case .env:   break  // env apply already in EnvFilePane toolbar
+        case .env:   envManager.applyCurrentSelection()
         }
     }
 
