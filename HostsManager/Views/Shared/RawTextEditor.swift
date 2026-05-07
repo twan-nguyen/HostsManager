@@ -11,10 +11,11 @@ struct RawTextEditor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         let textView = CommentToggleTextView()
+        let monoFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         textView.isEditable = true
         textView.isSelectable = true
         textView.allowsUndo = true
-        textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textView.font = monoFont
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -25,6 +26,11 @@ struct RawTextEditor: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.textContainer?.widthTracksTextView = true
+
+        context.coordinator.editorFont = monoFont
+        if let storage = textView.textStorage {
+            HostsSyntaxHighlighter.apply(to: storage, font: monoFont)
+        }
 
         scrollView.hasVerticalScroller = true
         scrollView.documentView = textView
@@ -37,11 +43,16 @@ struct RawTextEditor: NSViewRepresentable {
             let selectedRanges = textView.selectedRanges
             textView.string = text
             textView.selectedRanges = selectedRanges
+            if let storage = textView.textStorage {
+                HostsSyntaxHighlighter.apply(to: storage, font: context.coordinator.editorFont)
+            }
         }
     }
 
     class Coordinator: NSObject, NSTextViewDelegate {
         var parent: RawTextEditor
+        var editorFont: NSFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        private var highlightWorkItem: DispatchWorkItem?
 
         init(_ parent: RawTextEditor) {
             self.parent = parent
@@ -50,6 +61,16 @@ struct RawTextEditor: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
+
+            // Debounce: re-highlight 80ms after last keystroke. Avoids per-character
+            // attribute reset that would visibly stutter while typing.
+            highlightWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak textView, font = editorFont] in
+                guard let storage = textView?.textStorage else { return }
+                HostsSyntaxHighlighter.apply(to: storage, font: font)
+            }
+            highlightWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: work)
         }
     }
 }
