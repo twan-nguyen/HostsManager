@@ -1,7 +1,17 @@
 import SwiftUI
+import CoreGraphics
+
+/// Shared column widths for the host list. Both `HostRowView` and the column-header
+/// row in `HostsView` reference these so they stay aligned.
+enum HostRowLayout {
+    static let toggle: CGFloat = 32
+    static let ip: CGFloat = 130
+    static let source: CGFloat = 92
+    static let menu: CGFloat = 28
+}
 
 /// Single host entry row matching docs/mockup-reference.md → "List rows (Hosts)".
-/// Grid: toggle (30) | IP (mono) | hostname (mono) | source badge | menu.
+/// Grid: toggle | IP (mono) | hostname (mono, flex) | source badge | menu.
 struct HostRowView: View {
     let entry: HostEntry
     let hostsManager: HostsFileManager
@@ -17,13 +27,16 @@ struct HostRowView: View {
                 get: { entry.isEnabled },
                 set: { _ in hostsManager.toggleEntry(id: entry.id) }
             ))
-            .frame(width: 30)
+            .frame(width: HostRowLayout.toggle, alignment: .leading)
 
             Text(entry.ip)
                 .font(.dsMono)
                 .foregroundStyle(ipColor)
                 .strikethrough(!entry.isEnabled, color: ipColor)
-                .frame(width: 116, alignment: .leading)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help(entry.ip)
+                .frame(width: HostRowLayout.ip, alignment: .leading)
 
             Text(entry.hostname)
                 .font(.system(size: 11.5, design: .monospaced))
@@ -31,14 +44,14 @@ struct HostRowView: View {
                 .strikethrough(!entry.isEnabled, color: Color.dsTextPrimary)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .help(entry.hostname)
+                .help(entry.comment.isEmpty ? entry.hostname : "\(entry.hostname) — \(entry.comment)")
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             tagBadge
-                .frame(width: 80, alignment: .leading)
+                .frame(width: HostRowLayout.source, alignment: .leading)
 
             menuButton
-                .frame(width: 24)
+                .frame(width: HostRowLayout.menu, alignment: .center)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)

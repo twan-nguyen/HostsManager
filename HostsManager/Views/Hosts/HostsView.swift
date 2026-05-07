@@ -295,17 +295,17 @@ struct HostsView: View {
         .background(Color.dsBackground)
     }
 
-    /// Column titles row above the host list (mirrors mockup-reference.md → "List rows (Hosts)").
+    /// Column titles row above the host list. Widths defined in `HostRowLayout`.
     private var hostsListHeader: some View {
         HStack(spacing: DSSpacing.p2) {
-            Spacer().frame(width: 30)
+            Spacer().frame(width: HostRowLayout.toggle)
             Text("IP")
-                .frame(width: 116, alignment: .leading)
+                .frame(width: HostRowLayout.ip, alignment: .leading)
             Text("Hostname")
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("Source")
-                .frame(width: 80, alignment: .leading)
-            Spacer().frame(width: 24)
+                .frame(width: HostRowLayout.source, alignment: .leading)
+            Spacer().frame(width: HostRowLayout.menu)
         }
         .font(.dsLabel)
         .foregroundStyle(Color.dsTextTertiary)
