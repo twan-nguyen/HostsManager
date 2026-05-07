@@ -11,39 +11,50 @@ struct WindowChromeConfigurator: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 
     /// Apply our custom chrome to `window`. Exposed for tests.
+    /// Only sets fields whose value differs from desired — re-applying otherwise
+    /// drops pending click events.
     static func configure(_ window: NSWindow) {
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
-        window.toolbar = nil
-        // CRITICAL (macOS SDK 26): when titlebarAppearsTransparent + fullSizeContentView
-        // are both set, NSTitlebarContainerView gets isHidden=true / alpha=0 by the
-        // system, hiding the traffic lights. Force the container visible.
+        let desiredMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        if window.styleMask != desiredMask {
+            window.styleMask = desiredMask
+        }
+        if !window.titlebarAppearsTransparent { window.titlebarAppearsTransparent = true }
+        if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
+        if !window.isMovableByWindowBackground { window.isMovableByWindowBackground = true }
+        if window.toolbar != nil { window.toolbar = nil }
+        ensureTitlebarVisible(window)
+    }
+
+    /// Lightweight re-assertion of titlebar visibility (no styleMask reset).
+    /// Used by KVO callback when NavigationSplitView hides the container.
+    static func ensureTitlebarVisible(_ window: NSWindow) {
         let close = window.standardWindowButton(.closeButton)
         if let titlebarContainer = close?.superview?.superview {
-            titlebarContainer.isHidden = false
-            titlebarContainer.alphaValue = 1.0
+            if titlebarContainer.isHidden { titlebarContainer.isHidden = false }
+            if titlebarContainer.alphaValue != 1.0 { titlebarContainer.alphaValue = 1.0 }
         }
-        close?.isHidden = false
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = false
-        window.standardWindowButton(.zoomButton)?.isHidden = false
+        if close?.isHidden == true { close?.isHidden = false }
+        if window.standardWindowButton(.miniaturizeButton)?.isHidden == true {
+            window.standardWindowButton(.miniaturizeButton)?.isHidden = false
+        }
+        if window.standardWindowButton(.zoomButton)?.isHidden == true {
+            window.standardWindowButton(.zoomButton)?.isHidden = false
+        }
     }
 
     private final class ProbeView: NSView {
-        private var observer: NSObjectProtocol?
+        private var keyObserver: NSObjectProtocol?
+        private var hiddenKVO: NSKeyValueObservation?
+        private var alphaKVO: NSKeyValueObservation?
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            // Detach observer when the view leaves its old window so we never hold
-            // a stale registration across window changes.
-            if let observer {
-                NotificationCenter.default.removeObserver(observer)
-                self.observer = nil
-            }
+            detachObservers()
             guard let window = self.window, !(window is NSPanel) else { return }
             WindowChromeConfigurator.configure(window)
-            observer = NotificationCenter.default.addObserver(
+
+            // Re-apply when window becomes key.
+            keyObserver = NotificationCenter.default.addObserver(
                 forName: NSWindow.didBecomeKeyNotification,
                 object: window,
                 queue: .main
@@ -51,10 +62,33 @@ struct WindowChromeConfigurator: NSViewRepresentable {
                 guard let window else { return }
                 WindowChromeConfigurator.configure(window)
             }
+
+            // KVO on NSTitlebarContainerView's isHidden + alphaValue: NavigationSplitView
+            // (used by EnvView) hides the container when it installs its toolbar.
+            // Catch every hide attempt and immediately revert.
+            if let container = window.standardWindowButton(.closeButton)?.superview?.superview {
+                hiddenKVO = container.observe(\.isHidden, options: [.new]) { view, change in
+                    if change.newValue == true {
+                        view.isHidden = false
+                    }
+                }
+                alphaKVO = container.observe(\.alphaValue, options: [.new]) { view, change in
+                    if let v = change.newValue, v < 1.0 {
+                        view.alphaValue = 1.0
+                    }
+                }
+            }
         }
 
-        deinit {
-            if let observer { NotificationCenter.default.removeObserver(observer) }
+        private func detachObservers() {
+            if let keyObserver {
+                NotificationCenter.default.removeObserver(keyObserver)
+                self.keyObserver = nil
+            }
+            hiddenKVO?.invalidate(); hiddenKVO = nil
+            alphaKVO?.invalidate(); alphaKVO = nil
         }
+
+        deinit { detachObservers() }
     }
 }

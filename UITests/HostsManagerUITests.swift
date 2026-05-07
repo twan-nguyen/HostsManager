@@ -32,31 +32,69 @@ final class HostsManagerUITests: XCTestCase {
     }
 
     func test_tabSwitcher_switchesBetweenHostsAndEnv() {
-        // Search by label or identifier (Button + custom HStack label can show as either).
-        let envTab = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == 'tab-env' OR label == 'Env'"))
-            .firstMatch
-        let hostsTab = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == 'tab-hosts' OR label == 'Hosts'"))
-            .firstMatch
-        XCTAssertTrue(envTab.waitForExistence(timeout: 5), "tab-env should exist")
+        // Tab pills are SwiftUI Buttons but `.buttonStyle(.plain)` + custom label
+        // makes the AX type ambiguous on macOS — match by identifier across any
+        // element type to stay resilient.
+        // Identifier-only match (no label fallback) — the OR-with-label trick used
+        // to silently match the inner detail-header Text "Hosts", which became a
+        // stale reference after switching to Env and made the back-click no-op.
+        let envTab = app.buttons["tab-env"]
+        let hostsTab = app.buttons["tab-hosts"]
+        if !envTab.waitForExistence(timeout: 5) {
+            print("==DEBUG TREE==\n\(app.debugDescription)")
+        }
+        XCTAssertTrue(envTab.exists, "Env tab should exist (see debug tree)")
+        XCTAssertTrue(hostsTab.exists, "Hosts tab should exist")
 
+        // Initially Hosts is selected — its sidebar header "Profiles" must be visible,
+        // env-only header "Repos" must not.
+        XCTAssertTrue(app.staticTexts["PROFILES"].waitForExistence(timeout: 2),
+                      "Hosts sidebar (PROFILES) should be visible on launch")
+
+        // ---- Switch to Env ----
         envTab.click()
-        // Sleep brief — tab content swap animates 180ms
-        Thread.sleep(forTimeInterval: 0.4)
+        Thread.sleep(forTimeInterval: 0.5)
 
-        // Header must remain visible after switching to Env (regression: title bar
-        // could disappear if MainWindowView misuses .ignoresSafeArea / window safe areas).
+        // TitleBar still visible
         XCTAssertTrue(app.staticTexts["Hosts Manager"].exists,
-                      "TitleBar 'Hosts Manager' must persist after switching to Env tab")
-        XCTAssertTrue(envTab.exists, "Env tab button must remain in title bar")
-        XCTAssertTrue(hostsTab.exists, "Hosts tab button must remain in title bar")
+                      "TitleBar must persist after switching to Env")
+        // Env-only sidebar header
+        XCTAssertTrue(app.staticTexts["REPOS"].waitForExistence(timeout: 2),
+                      "After Env click, sidebar should show REPOS")
+        XCTAssertFalse(app.staticTexts["PROFILES"].exists,
+                       "PROFILES (hosts sidebar) must no longer be visible after switching to Env")
 
+        // ---- Switch back to Hosts ----
+        print("==BEFORE HOSTS CLICK== hostsTab.exists=\(hostsTab.exists) hittable=\(hostsTab.isHittable) frame=\(hostsTab.frame)")
         hostsTab.click()
-        Thread.sleep(forTimeInterval: 0.4)
-        XCTAssertTrue(app.windows.firstMatch.exists, "Window should still be present after tab switches")
+        Thread.sleep(forTimeInterval: 0.5)
+        print("==AFTER HOSTS CLICK== profiles.exists=\(app.staticTexts["PROFILES"].exists) repos.exists=\(app.staticTexts["REPOS"].exists)")
+        if !app.staticTexts["PROFILES"].exists {
+            print("==DEBUG TREE AFTER FAILED HOSTS CLICK==\n\(app.debugDescription)")
+        }
+
         XCTAssertTrue(app.staticTexts["Hosts Manager"].exists,
-                      "TitleBar must still be visible after switching back to Hosts")
+                      "TitleBar must persist after switching back to Hosts")
+        XCTAssertTrue(app.staticTexts["PROFILES"].waitForExistence(timeout: 2),
+                      "After Hosts click, sidebar should show PROFILES again")
+        XCTAssertFalse(app.staticTexts["REPOS"].exists,
+                       "REPOS must no longer be visible after switching back to Hosts")
+    }
+
+    /// Regression: NavigationSplitView in EnvView would hide NSTitlebarContainerView,
+    /// making traffic lights disappear on Env tab. Verifies close button stays hittable.
+    func test_trafficLights_remainVisibleAfterEnvSwitch() {
+        let close = app.windows.firstMatch.buttons[XCUIIdentifierCloseWindow]
+        XCTAssertTrue(close.waitForExistence(timeout: 3))
+        XCTAssertTrue(close.isHittable, "Close button hittable on launch")
+
+        let envTab = app.buttons["tab-env"]
+        XCTAssertTrue(envTab.waitForExistence(timeout: 3))
+        envTab.click()
+        Thread.sleep(forTimeInterval: 0.5)
+
+        XCTAssertTrue(close.exists, "Close button still exists after Env tab")
+        XCTAssertTrue(close.isHittable, "Close button still hittable after Env tab — traffic lights must persist")
     }
 
     func test_searchField_filtersHostList() throws {

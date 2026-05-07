@@ -48,11 +48,9 @@ struct MainWindowView: View {
             )
         }
         .background(Color.dsBackground)
-        .ignoresSafeArea(.all)
         .preferredColorScheme(appearance.colorScheme)
         .environment(\.isActiveTab, true)
         .background(WindowChromeConfigurator())
-        .accessibilityIdentifier("main-window")
     }
 
     // MARK: - Content routing

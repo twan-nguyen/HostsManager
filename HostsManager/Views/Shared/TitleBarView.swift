@@ -105,15 +105,17 @@ struct TitleBarView: View {
                         lineWidth: 0.5
                     )
             )
+            // Make the entire padded area clickable. Without this, only the inner
+            // text/icon is hit-tested — XCUITest (and small mouse targets) miss the
+            // button when the active tab is wider than the inactive one and the
+            // user clicks on the padding region.
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // SwiftUI adds a system focus ring around the button when it gets keyboard
-        // focus after a click — that ring sits on top of and visually obscures the
-        // tab pill. Disable it; selected state is communicated via fill+stroke.
-        .focusEffectDisabled()
         .accessibilityElement(children: .combine)
         .accessibilityLabel(tab.rawValue)
         .accessibilityIdentifier("tab-\(tab.rawValue.lowercased())")
+        .accessibilityAddTraits(.isButton)
     }
 
     private var rightZone: some View {
