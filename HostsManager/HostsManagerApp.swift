@@ -40,6 +40,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // SwiftUI creates the window after didFinishLaunching, so defer + observe.
+        configureWindows()
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { _ in self.configureWindows() }
+    }
+
+    /// Extend custom TitleBarView all the way to the top of the window so traffic
+    /// lights overlay our gradient bg instead of leaving a dark gap above.
+    private func configureWindows() {
+        for window in NSApp.windows {
+            window.titlebarAppearsTransparent = true
+            window.styleMask.insert(.fullSizeContentView)
+            window.titleVisibility = .hidden
+            window.isMovableByWindowBackground = true
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         releaseAuthorization()
     }

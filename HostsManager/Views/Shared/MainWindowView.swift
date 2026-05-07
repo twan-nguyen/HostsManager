@@ -44,6 +44,7 @@ struct MainWindowView: View {
         .background(Color.dsBackground)
         .preferredColorScheme(appearance.colorScheme)
         .environment(\.isActiveTab, true)
+        .toolbar(.hidden, for: .windowToolbar)
     }
 
     // MARK: - Content routing

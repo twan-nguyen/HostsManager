@@ -16,32 +16,35 @@ struct HostsView: View {
     @State private var showDeleteConfirm = false
     @State private var viewMode: ViewMode = .table
     @State private var rawText = ""
+    @FocusState private var isSearchFieldFocused: Bool
 
     var body: some View {
         @Bindable var hostsManager = hostsManager
         return NavigationSplitView {
             SidebarView(selection: $sidebarSelection, hostsManager: hostsManager)
         } detail: {
-            ZStack {
-                if viewMode == .text {
-                    rawTextEditorView
-                } else {
-                    entriesListView
-                }
-
-                if let toast = hostsManager.toast {
-                    VStack {
-                        Spacer()
-                        ToastView(toast: toast)
-                            .padding(.bottom, 16)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+            VStack(spacing: 0) {
+                detailHeaderBar
+                ZStack {
+                    if viewMode == .text {
+                        rawTextEditorView
+                    } else {
+                        entriesListView
                     }
-                    .animation(.spring(response: 0.4), value: hostsManager.toast)
+
+                    if let toast = hostsManager.toast {
+                        VStack {
+                            Spacer()
+                            ToastView(toast: toast)
+                                .padding(.bottom, 16)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                        .animation(.spring(response: 0.4), value: hostsManager.toast)
+                    }
                 }
             }
         }
-        .modifier(SearchableWithFocus(searchText: $searchText, isPresented: $hostsManager.isSearchFocused))
-        .toolbar { toolbarContent }
+        .toolbar(.hidden, for: .windowToolbar)
         .sheet(isPresented: $showAddSheet) {
             EntryFormSheet(hostsManager: hostsManager, mode: .add)
         }
@@ -61,16 +64,30 @@ struct HostsView: View {
         }
     }
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        // Left: secondary view controls — tách riêng để toolbar bên phải sạch chỉ chứa primary actions
-        ToolbarItemGroup(placement: .navigation) {
-            Picker("Mode", selection: $viewMode) {
+    /// Inline detail header (replaces the old `.toolbar` items now that MainWindowView owns chrome).
+    /// Reference: docs/mockup-reference.md → "Detail content area" → "Header bar".
+    private var detailHeaderBar: some View {
+        HStack(spacing: DSSpacing.p3) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Hosts")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color.dsTextPrimary)
+                Text(headerSubtitleText)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+
+            Spacer()
+
+            inlineSearchField
+
+            Picker("", selection: $viewMode) {
                 Image(systemName: "tablecells").tag(ViewMode.table)
                 Image(systemName: "doc.plaintext").tag(ViewMode.text)
             }
             .pickerStyle(.segmented)
-            .help("Chuyển đổi chế độ xem")
+            .labelsHidden()
+            .frame(width: 88)
             .onChange(of: viewMode) { newValue in
                 if newValue == .text {
                     rawText = hostsManager.generateHostsContent()
@@ -82,17 +99,22 @@ struct HostsView: View {
                     }
                 }
             }
-        }
 
-        // Right: primary actions
-        ToolbarItemGroup(placement: .primaryAction) {
             Button {
                 showAddSheet = true
             } label: {
                 Image(systemName: "plus")
+                    .font(.system(size: 12))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.sm)
+                            .strokeBorder(Color.dsBorderSecondary, lineWidth: 0.5)
+                    )
             }
-            .help("Thêm entry mới")
+            .buttonStyle(.plain)
             .disabled(viewMode == .text)
+            .help("Thêm entry mới")
 
             Menu {
                 Section("Import / Export") {
@@ -124,39 +146,56 @@ struct HostsView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.dsTextSecondary)
             }
             .menuStyle(.borderlessButton)
-            .help("Tuỳ chọn khác")
+            .fixedSize()
             .disabled(viewMode == .text)
-
-            applyButton
+            .help("Tuỳ chọn khác")
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, DSSpacing.p3)
+        .padding(.bottom, DSSpacing.p2)
+        .background(Color.dsBackground)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.dsBorderTertiary).frame(height: 0.5)
         }
     }
 
-    private var applyButton: some View {
-        Button {
-            if viewMode == .text {
-                hostsManager.applyRawText(rawText)
-            } else {
-                hostsManager.applyChanges()
-            }
-        } label: {
-            HStack(spacing: 6) {
-                if hostsManager.isApplying {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: hostsManager.hasUnsavedChanges ? "arrow.up.circle.fill" : "checkmark.circle")
-                        .modifier(PulseEffectModifier(isActive: hostsManager.hasUnsavedChanges))
-                }
-                Text(hostsManager.isApplying ? "Đang lưu" : "Áp dụng")
-                    .fontWeight(.medium)
+    private var inlineSearchField: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.dsTextTertiary)
+            TextField("Tìm hostname, IP…", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 11.5))
+                .frame(width: 200)
+                .focused($isSearchFieldFocused)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .fill(Color.white.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .strokeBorder(Color.dsBorderSecondary, lineWidth: 0.5)
+        )
+        .onChange(of: hostsManager.isSearchFocused) { newValue in
+            if newValue {
+                isSearchFieldFocused = true
+                hostsManager.isSearchFocused = false
             }
         }
-        .buttonStyle(.borderedProminent)
-        .tint(hostsManager.hasUnsavedChanges ? .accentColor : .secondary)
-        .disabled(!hostsManager.hasUnsavedChanges || hostsManager.isApplying)
-        .keyboardShortcut("s", modifiers: .command)
-        .animation(.easeInOut(duration: 0.2), value: hostsManager.hasUnsavedChanges)
+    }
+
+    private var headerSubtitleText: String {
+        let enabled = hostsManager.entries.filter(\.isEnabled).count
+        let disabled = hostsManager.entries.count - enabled
+        return "\(enabled) bật · \(disabled) tắt"
     }
 
     private var rawTextEditorView: some View {
