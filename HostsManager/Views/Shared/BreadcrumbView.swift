@@ -1,0 +1,136 @@
+import SwiftUI
+
+/// 32-pt context strip below TitleBar. Shows file path → active profile → status indicators.
+/// Reference: docs/mockup-reference.md → "Breadcrumb".
+struct BreadcrumbView: View {
+    let activeTab: AppTab
+    let activeProfile: Profile?
+    let pendingChanges: Int
+    var sudoOK: Bool = false
+
+    var body: some View {
+        HStack(spacing: DSSpacing.p2) {
+            leftZone
+            Spacer()
+            rightZone
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .frame(height: 32)
+        .background(Color.dsBackgroundBreadcrumb)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.dsBorderTertiary)
+                .frame(height: 0.5)
+        }
+    }
+
+    // MARK: - Subviews
+
+    @ViewBuilder
+    private var leftZone: some View {
+        switch activeTab {
+        case .hosts: hostsBreadcrumb
+        case .env:   envBreadcrumb
+        }
+    }
+
+    private var hostsBreadcrumb: some View {
+        HStack(spacing: DSSpacing.p2) {
+            HStack(spacing: 4) {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+                Text("/etc/hosts")
+                    .font(.dsMonoSmall)
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+
+            chevron
+
+            if let profile = activeProfile {
+                ProfileBadge(profile: profile, glow: true)
+            } else {
+                Text("Tất cả profiles")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.dsTextTertiary)
+            }
+        }
+    }
+
+    private var envBreadcrumb: some View {
+        HStack(spacing: DSSpacing.p2) {
+            HStack(spacing: 4) {
+                Image(systemName: "folder")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsProfilePurple)
+                Text(".env")
+                    .font(.dsMonoSmall)
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+
+            chevron
+
+            if let profile = activeProfile {
+                ProfileBadge(profile: profile, glow: true)
+            }
+        }
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(Color.white.opacity(0.2))
+    }
+
+    @ViewBuilder
+    private var rightZone: some View {
+        HStack(spacing: DSSpacing.p3) {
+            if activeTab == .hosts {
+                HStack(spacing: 4) {
+                    Image(systemName: sudoOK ? "checkmark.shield.fill" : "shield")
+                        .font(.system(size: 10))
+                        .foregroundStyle(sudoOK ? Color.dsResolvedGreen : Color.dsTextTertiary)
+                    Text(sudoOK ? "sudo OK" : "chưa có quyền")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(Color.dsTextSecondary)
+                }
+            }
+
+            if pendingChanges > 0 {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.dsProfileAmber)
+                        .frame(width: 6, height: 6)
+                    Text("\(pendingChanges) thay đổi")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(Color.dsTextSecondary)
+                }
+            }
+        }
+    }
+}
+
+#Preview("Hosts mode") {
+    VStack(spacing: 0) {
+        BreadcrumbView(
+            activeTab: .hosts,
+            activeProfile: .release,
+            pendingChanges: 2,
+            sudoOK: true
+        )
+        BreadcrumbView(
+            activeTab: .hosts,
+            activeProfile: nil,
+            pendingChanges: 0,
+            sudoOK: false
+        )
+        BreadcrumbView(
+            activeTab: .env,
+            activeProfile: .production,
+            pendingChanges: 1
+        )
+    }
+    .frame(width: 980)
+    .background(Color.dsBackground)
+}

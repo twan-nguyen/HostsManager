@@ -12,14 +12,14 @@ struct HostsManagerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainWindowView()
                 .environment(hostsManager)
                 .environment(envManager)
-                .frame(minWidth: 800, minHeight: 500)
-                .navigationTitle("Hosts Manager v\(appVersion)")
+                .frame(minWidth: 880, minHeight: 540)
         }
-        .windowToolbarStyle(.unifiedCompact)
-        .defaultSize(width: 1000, height: 650)
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .defaultSize(width: 980, height: 640)
         .commands {
             CommandGroup(after: .textEditing) {
                 Button("Tìm kiếm") {
@@ -27,6 +27,10 @@ struct HostsManagerApp: App {
                 }
                 .keyboardShortcut("f", modifiers: .command)
             }
+        }
+
+        Settings {
+            EmptyView()
         }
     }
 }
