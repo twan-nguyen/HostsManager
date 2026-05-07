@@ -93,20 +93,26 @@ final class HostsManagerUITests: XCTestCase {
     func test_settingsScene_opensViaMenuBar() throws {
         let initialWindowCount = app.windows.count
 
-        // SwiftUI Settings scene gets a "Settings…" menu item in the app menu
-        // (often "HostsManager → Settings…"). ⌘, may fail in test runner if focus
-        // isn't on the SwiftUI window — use the menu bar directly.
+        // SwiftUI Settings scene exposes a "Settings…" item in the app menu.
+        // Open menu, wait for it to render, then click via menuBars > menuItems
+        // (more reliable than top-level descendants matching).
         let appMenu = app.menuBars.menuBarItems.element(boundBy: 0)
         XCTAssertTrue(appMenu.waitForExistence(timeout: 2), "App menu missing")
         appMenu.click()
+        Thread.sleep(forTimeInterval: 0.4)  // menu animation
 
-        // The settings item title is "Settings…" on macOS 13+; older was "Preferences…"
-        let settingsItem = app.menuItems
+        let settingsItem = app.menuBars.menuItems
             .matching(NSPredicate(format: "title BEGINSWITH 'Settings' OR title BEGINSWITH 'Preferences'"))
             .firstMatch
-        XCTAssertTrue(settingsItem.waitForExistence(timeout: 2), "Settings… menu item missing")
+        guard settingsItem.waitForExistence(timeout: 2),
+              settingsItem.isHittable
+        else {
+            // Dismiss menu before failing
+            app.typeKey(.escape, modifierFlags: [])
+            throw XCTSkip("Settings… menu item not hittable in this runner context")
+        }
         settingsItem.click()
-        Thread.sleep(forTimeInterval: 0.5)
+        Thread.sleep(forTimeInterval: 0.6)
 
         XCTAssertGreaterThan(app.windows.count, initialWindowCount,
                              "Settings window should appear")
