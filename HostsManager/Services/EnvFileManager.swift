@@ -1,13 +1,14 @@
 import Foundation
 import SwiftUI
 
+@Observable
 @MainActor
-final class EnvFileManager: ObservableObject {
-    @Published var repos: [EnvRepo] = []
-    @Published var selectedRepoId: UUID?
-    @Published var selectedFilePath: String?
-    @Published var loadedFiles: [UUID: [EnvFile]] = [:]
-    @Published var toast: ToastMessage?
+final class EnvFileManager {
+    var repos: [EnvRepo] = []
+    var selectedRepoId: UUID?
+    var selectedFilePath: String?
+    var loadedFiles: [UUID: [EnvFile]] = [:]
+    var toast: ToastMessage?
 
     private let storageURL: URL
 

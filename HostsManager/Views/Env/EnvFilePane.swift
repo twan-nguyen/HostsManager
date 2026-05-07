@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct EnvFilePane: View {
-    @EnvironmentObject var envManager: EnvFileManager
+    @Environment(EnvFileManager.self) private var envManager
     let repo: EnvRepo
 
     @State private var discoverResult: EnvDiscoverResult = .ok([])
@@ -83,7 +83,7 @@ struct EnvFilePane: View {
         }
         .sheet(item: $profileSheetMode) { mode in
             EnvProfileSheet(mode: mode)
-                .environmentObject(envManager)
+                .environment(envManager)
         }
         .alert("Áp dụng profile?", isPresented: $showApplyConfirm) {
             Button("Áp dụng", role: .destructive) { performApplyProfile() }

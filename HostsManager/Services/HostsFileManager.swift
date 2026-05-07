@@ -62,15 +62,16 @@ struct ToastMessage: Equatable {
     }
 }
 
+@Observable
 @MainActor
-class HostsFileManager: ObservableObject {
-    @Published var entries: [HostEntry] = []
-    @Published var tags: [HostTag] = []
-    @Published var commentLines: [(index: Int, text: String)] = []
-    @Published var hasUnsavedChanges = false
-    @Published var isApplying = false
-    @Published var isSearchFocused = false
-    @Published var toast: ToastMessage?
+final class HostsFileManager {
+    var entries: [HostEntry] = []
+    var tags: [HostTag] = []
+    var commentLines: [(index: Int, text: String)] = []
+    var hasUnsavedChanges = false
+    var isApplying = false
+    var isSearchFocused = false
+    var toast: ToastMessage?
 
     private var originalContent = ""
     private let hostsPath = "/etc/hosts"

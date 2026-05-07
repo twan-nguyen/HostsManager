@@ -7,7 +7,7 @@ enum SidebarSelection: Hashable {
 
 struct SidebarView: View {
     @Binding var selection: SidebarSelection?
-    @ObservedObject var hostsManager: HostsFileManager
+    @Bindable var hostsManager: HostsFileManager
 
     @State private var showCreateTagAlert = false
     @State private var newTagName = ""

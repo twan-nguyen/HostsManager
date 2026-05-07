@@ -19,7 +19,7 @@ enum EnvProfileSheetMode: Identifiable {
 }
 
 struct EnvProfileSheet: View {
-    @EnvironmentObject var envManager: EnvFileManager
+    @Environment(EnvFileManager.self) private var envManager
     let mode: EnvProfileSheetMode
     @Environment(\.dismiss) private var dismiss
 

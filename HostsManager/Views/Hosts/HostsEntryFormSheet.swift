@@ -13,7 +13,7 @@ enum EntryFormMode: Identifiable {
 }
 
 struct EntryFormSheet: View {
-    @ObservedObject var hostsManager: HostsFileManager
+    let hostsManager: HostsFileManager
     let mode: EntryFormMode
     @Environment(\.dismiss) private var dismiss
 

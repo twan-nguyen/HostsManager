@@ -81,6 +81,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environmentObject(HostsFileManager())
-        .environmentObject(EnvFileManager())
+        .environment(HostsFileManager())
+        .environment(EnvFileManager())
 }

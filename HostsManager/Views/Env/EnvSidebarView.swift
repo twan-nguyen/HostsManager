@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 struct EnvSidebarView: View {
-    @EnvironmentObject var envManager: EnvFileManager
+    @Environment(EnvFileManager.self) private var envManager
     @State private var showRenameAlert = false
     @State private var renamingRepoId: UUID?
     @State private var renameBuffer = ""

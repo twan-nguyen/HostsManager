@@ -6,7 +6,7 @@ enum ViewMode {
 }
 
 struct HostsView: View {
-    @EnvironmentObject var hostsManager: HostsFileManager
+    @Environment(HostsFileManager.self) private var hostsManager
     @State private var sidebarSelection: SidebarSelection? = .filter(.all)
     @State private var searchText = ""
     @State private var showAddSheet = false
@@ -18,7 +18,8 @@ struct HostsView: View {
     @State private var rawText = ""
 
     var body: some View {
-        NavigationSplitView {
+        @Bindable var hostsManager = hostsManager
+        return NavigationSplitView {
             SidebarView(selection: $sidebarSelection, hostsManager: hostsManager)
         } detail: {
             ZStack {
