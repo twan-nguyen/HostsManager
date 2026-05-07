@@ -41,10 +41,9 @@ struct TitleBarView: View {
             Text("Hosts Manager")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Color.dsTextPrimary)
-            Text("v\(appVersion)")
-                .font(.system(size: 11))
-                .foregroundStyle(Color.dsTextTertiary)
+            // Version visible only on hover via tooltip — keeps title bar minimal per mockup.
         }
+        .help("v\(appVersion)")
         // Reserve room for traffic-light buttons (window controls overlap left edge).
         .padding(.leading, 60)
     }

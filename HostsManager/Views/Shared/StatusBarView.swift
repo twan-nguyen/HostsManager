@@ -6,6 +6,7 @@ struct StatusBarView: View {
     let activeTab: AppTab
     let pendingChanges: Int
     let isApplying: Bool
+    var sudoOK: Bool = false
     var onUndo: () -> Void = {}
     var onApply: () -> Void = {}
 
@@ -30,9 +31,7 @@ struct StatusBarView: View {
             if pendingChanges > 0 {
                 Text("·")
                     .foregroundStyle(Color.dsTextTertiary)
-                Text("\(pendingChanges) thay đổi chưa lưu")
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(Color.dsTextSecondary)
+                pendingHint
             }
 
             Spacer()
@@ -52,6 +51,30 @@ struct StatusBarView: View {
     }
 
     // MARK: - Subviews
+
+    /// Pending changes hint — for hosts shows sudo requirement, env shows file count.
+    @ViewBuilder
+    private var pendingHint: some View {
+        if activeTab == .hosts {
+            HStack(spacing: 4) {
+                Text("\(pendingChanges) thay đổi")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+                Text("·")
+                    .foregroundStyle(Color.dsTextTertiary)
+                Image(systemName: sudoOK ? "checkmark.shield.fill" : "shield")
+                    .font(.system(size: 10))
+                    .foregroundStyle(sudoOK ? Color.dsResolvedGreen : Color.dsTextTertiary)
+                Text(sudoOK ? "sudo OK" : "cần sudo")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+        } else {
+            Text("\(pendingChanges) file thay đổi")
+                .font(.system(size: 10.5))
+                .foregroundStyle(Color.dsTextSecondary)
+        }
+    }
 
     private var undoButton: some View {
         Button(action: onUndo) {

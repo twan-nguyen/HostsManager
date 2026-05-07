@@ -37,6 +37,7 @@ struct MainWindowView: View {
                 activeTab: selectedTab,
                 pendingChanges: pendingChanges,
                 isApplying: hostsManager.isApplying,
+                sudoOK: false,  // wired in v2.1 with SudoCoordinator session cache
                 onUndo: handleUndo,
                 onApply: handleApply
             )

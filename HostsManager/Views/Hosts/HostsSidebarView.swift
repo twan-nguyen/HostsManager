@@ -23,6 +23,7 @@ struct SidebarView: View {
             VStack(alignment: .leading, spacing: DSSpacing.p4) {
                 profilesSection
                 filterSection
+                toolsSection
                 if hostsManager.hasUnsavedChanges {
                     unsavedChangesBanner
                 }
@@ -156,18 +157,51 @@ struct SidebarView: View {
     @ViewBuilder
     private func profileRowBackground(_ profile: Profile, isActive: Bool) -> some View {
         if isActive {
+            // Stronger filled bg for active profile (matches mockup):
+            // base dark color tinted with profile color overlay.
             RoundedRectangle(cornerRadius: 7)
-                .fill(LinearGradient(
-                    colors: [
-                        Color.ds(profile.color).opacity(0.18),
-                        Color.ds(profile.color).opacity(0.08),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(LinearGradient(
+                            colors: [
+                                Color.ds(profile.color).opacity(0.22),
+                                Color.ds(profile.color).opacity(0.10),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                )
         } else {
             RoundedRectangle(cornerRadius: 7).fill(Color.clear)
         }
+    }
+
+    // MARK: - Tools section (mockup: Test connectivity, Lịch sử)
+
+    private var toolsSection: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            sectionHeader("Tools")
+            toolRow(icon: "flask", title: "Test connectivity") {}
+            toolRow(icon: "clock.arrow.circlepath", title: "Lịch sử") {}
+        }
+    }
+
+    private func toolRow(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.dsTextSecondary)
+                    .frame(width: 14)
+                Text(title)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+                Spacer()
+            }
+            .dsSidebarItem(isSelected: false)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Filter section

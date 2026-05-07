@@ -49,13 +49,36 @@ struct BreadcrumbView: View {
             chevron
 
             if let profile = activeProfile {
-                ProfileBadge(profile: profile, glow: true)
+                profileDropdownBadge(profile)
             } else {
                 Text("Tất cả profiles")
                     .font(.system(size: 11))
                     .foregroundStyle(Color.dsTextTertiary)
             }
         }
+    }
+
+    /// Breadcrumb-style profile badge with dropdown chevron (mockup: "Release ▾").
+    private func profileDropdownBadge(_ profile: Profile) -> some View {
+        HStack(spacing: 6) {
+            StatusDot(color: .ds(profile.color), size: 6, glow: true)
+            Text(profile.name)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(Color(hex: "#CECBF6"))
+            Image(systemName: "chevron.down")
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.45))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.sm)
+                .fill(Color.ds(profile.color).opacity(0.15))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.sm)
+                .strokeBorder(Color.ds(profile.color).opacity(0.3), lineWidth: 0.5)
+        )
     }
 
     private var envBreadcrumb: some View {

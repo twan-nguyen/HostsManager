@@ -72,9 +72,7 @@ struct HostsView: View {
                 Text("Hosts")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(Color.dsTextPrimary)
-                Text(headerSubtitleText)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(Color.dsTextSecondary)
+                detailHeaderSubtitle
             }
 
             Spacer()
@@ -193,10 +191,26 @@ struct HostsView: View {
         }
     }
 
-    private var headerSubtitleText: String {
+    /// Subtitle with colored dots inline: ●6 enabled · ●1 disabled (matches mockup).
+    private var detailHeaderSubtitle: some View {
         let enabled = hostsManager.entries.filter(\.isEnabled).count
         let disabled = hostsManager.entries.count - enabled
-        return "\(enabled) bật · \(disabled) tắt"
+        return HStack(spacing: 6) {
+            HStack(spacing: 4) {
+                Circle().fill(Color.dsResolvedGreen).frame(width: 5, height: 5)
+                Text("\(enabled) enabled")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+            Text("·")
+                .foregroundStyle(Color.dsTextTertiary)
+            HStack(spacing: 4) {
+                Circle().fill(Color.dsTextTertiary).frame(width: 5, height: 5)
+                Text("\(disabled) disabled")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color.dsTextSecondary)
+            }
+        }
     }
 
     private var rawTextEditorView: some View {
