@@ -26,10 +26,15 @@ struct HostsManagerApp: App {
         }
         // NOTE: do NOT set .windowStyle(.hiddenTitleBar) here — on macOS SDK 26 it
         // misbehaves when combined with MenuBarExtra (drops traffic lights and leaves
-        // an empty gap above content). AppDelegate.configureWindows() does the work
+        // an empty gap above content). WindowChromeConfigurator does the work
         // manually with explicit styleMask + titlebarAppearsTransparent.
         .windowResizability(.contentSize)
         .defaultSize(width: 980, height: 640)
+        // Suppress the auto-derived window title (CFBundleName "HostsManager") that
+        // NavigationSplitView re-asserts on tab switch. Our custom TitleBarView
+        // owns title rendering; this modifier hides AppKit's text without
+        // disabling the title bar entirely (so traffic lights stay).
+        .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
             CommandGroup(replacing: .undoRedo) {
                 Button("Hoàn tác") { hostsManager.undo() }

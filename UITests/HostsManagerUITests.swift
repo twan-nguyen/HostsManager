@@ -97,6 +97,23 @@ final class HostsManagerUITests: XCTestCase {
         XCTAssertTrue(close.isHittable, "Close button still hittable after Env tab — traffic lights must persist")
     }
 
+    /// Regression: NavigationSplitView in EnvView auto-derived window title from
+    /// CFBundleName ("HostsManager") and rendered it above our custom TitleBarView.
+    /// Fixed via .windowToolbarStyle(.unified(showsTitle: false)) at the scene.
+    /// Custom title is "Hosts Manager" (with space); bundle name is "HostsManager".
+    func test_windowTitle_bundleNameNotShownAfterEnvSwitch() {
+        let envTab = app.buttons["tab-env"]
+        XCTAssertTrue(envTab.waitForExistence(timeout: 3))
+        envTab.click()
+        Thread.sleep(forTimeInterval: 0.6)
+
+        XCTAssertFalse(app.staticTexts["HostsManager"].exists,
+                       "AppKit window title (CFBundleName) must not render — windowToolbarStyle should hide it")
+        // Our custom title bar must still be visible
+        XCTAssertTrue(app.staticTexts["Hosts Manager"].exists,
+                      "Custom TitleBarView text must remain")
+    }
+
     func test_searchField_filtersHostList() throws {
         let search = app.textFields["hosts-search-field"]
         XCTAssertTrue(search.waitForExistence(timeout: 3))
