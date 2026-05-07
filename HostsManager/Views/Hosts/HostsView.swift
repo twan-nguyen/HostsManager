@@ -23,7 +23,6 @@ struct HostsView: View {
         return NavigationSplitView {
             SidebarView(selection: $sidebarSelection, hostsManager: hostsManager)
                 .toolbar(removing: .sidebarToggle)
-                .toolbar(.hidden, for: .automatic)
         } detail: {
             VStack(spacing: 0) {
                 detailHeaderBar
