@@ -14,20 +14,21 @@ struct TitleBarView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            leftZone
-            Spacer(minLength: DSSpacing.p3)
-            tabSwitcher
-            Spacer(minLength: DSSpacing.p3)
-            rightZone
+        // Pin content to the top of a 38pt bar with 4pt top inset so the row's
+        // visual baseline (~y=18) lines up with the macOS traffic-light buttons
+        // (which sit at y=9..23 / center 16 in the 32pt native titlebar).
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                leftZone
+                Spacer(minLength: DSSpacing.p3)
+                tabSwitcher
+                Spacer(minLength: DSSpacing.p3)
+                rightZone
+            }
+            .padding(.horizontal, DSSpacing.p3)
+            .padding(.top, 4)
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, DSSpacing.p3)
-        // Align content vertically with the traffic-light buttons (which sit at
-        // y=9..23 within the 32pt native titlebar — center y=16). Container is 38pt
-        // with `alignment: .top` and 4pt top padding pushes content center to y≈18,
-        // matching button center while leaving slight breathing room below.
-        .frame(maxHeight: 38, alignment: .top)
-        .padding(.top, 4)
         .frame(height: 38)
         .background(titleBarBackground)
         .overlay(alignment: .bottom) {

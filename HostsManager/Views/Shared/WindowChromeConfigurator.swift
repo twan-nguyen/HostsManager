@@ -31,11 +31,19 @@ struct WindowChromeConfigurator: NSViewRepresentable {
     }
 
     private final class ProbeView: NSView {
+        private var observer: NSObjectProtocol?
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
+            // Detach observer when the view leaves its old window so we never hold
+            // a stale registration across window changes.
+            if let observer {
+                NotificationCenter.default.removeObserver(observer)
+                self.observer = nil
+            }
             guard let window = self.window, !(window is NSPanel) else { return }
             WindowChromeConfigurator.configure(window)
-            NotificationCenter.default.addObserver(
+            observer = NotificationCenter.default.addObserver(
                 forName: NSWindow.didBecomeKeyNotification,
                 object: window,
                 queue: .main
@@ -43,6 +51,10 @@ struct WindowChromeConfigurator: NSViewRepresentable {
                 guard let window else { return }
                 WindowChromeConfigurator.configure(window)
             }
+        }
+
+        deinit {
+            if let observer { NotificationCenter.default.removeObserver(observer) }
         }
     }
 }
