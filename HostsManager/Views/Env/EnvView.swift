@@ -8,6 +8,7 @@ struct EnvView: View {
             EnvSidebarView()
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240)
                 .toolbar(removing: .sidebarToggle)
+                .toolbar(.hidden, for: .automatic)
         } detail: {
             ZStack {
                 detailContent
