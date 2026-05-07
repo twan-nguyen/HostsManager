@@ -21,6 +21,14 @@ struct HostsManagerApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 980, height: 640)
         .commands {
+            CommandGroup(replacing: .undoRedo) {
+                Button("Hoàn tác") { hostsManager.undo() }
+                    .keyboardShortcut("z", modifiers: .command)
+                    .disabled(!hostsManager.canUndo)
+                Button("Làm lại") { hostsManager.redo() }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .disabled(!hostsManager.canRedo)
+            }
             CommandGroup(after: .textEditing) {
                 Button("Tìm kiếm") {
                     hostsManager.isSearchFocused = true

@@ -38,7 +38,10 @@ struct MainWindowView: View {
                 pendingChanges: pendingChanges,
                 isApplying: hostsManager.isApplying,
                 sudoOK: false,  // wired in v2.1 with SudoCoordinator session cache
+                canUndo: canUndoForTab,
+                canRedo: canRedoForTab,
                 onUndo: handleUndo,
+                onRedo: handleRedo,
                 onApply: handleApply
             )
         }
@@ -88,10 +91,25 @@ struct MainWindowView: View {
 
     // MARK: - Actions
 
+    private var canUndoForTab: Bool {
+        selectedTab == .hosts && hostsManager.canUndo
+    }
+
+    private var canRedoForTab: Bool {
+        selectedTab == .hosts && hostsManager.canRedo
+    }
+
     private func handleUndo() {
         switch selectedTab {
-        case .hosts: hostsManager.loadHostsFile()
-        case .env:   break  // env undo wired in v2.1
+        case .hosts: hostsManager.undo()
+        case .env:   break  // env undo wired in v2.2
+        }
+    }
+
+    private func handleRedo() {
+        switch selectedTab {
+        case .hosts: hostsManager.redo()
+        case .env:   break
         }
     }
 

@@ -85,6 +85,50 @@ final class HostsFileManager {
     private let hostsPath = "/etc/hosts"
     private let profileStore: ProfileStoring
 
+    // MARK: - Undo / Redo
+
+    /// Snapshot stacks for undo/redo. Each snapshot captures `entries` only — tags and
+    /// comments derive from entries on serialization, profile metadata is independent.
+    /// Cap stack size to bound memory for very large hosts files.
+    private var undoStack: [[HostEntry]] = []
+    private var redoStack: [[HostEntry]] = []
+    private static let maxUndoDepth = 50
+
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
+
+    /// Push current `entries` onto the undo stack and clear the redo stack. Call BEFORE
+    /// any mutation that should be undoable. Coalesces no-op pushes (same as last snapshot).
+    private func pushUndo() {
+        if let last = undoStack.last, last == entries { return }
+        undoStack.append(entries)
+        if undoStack.count > Self.maxUndoDepth {
+            undoStack.removeFirst(undoStack.count - Self.maxUndoDepth)
+        }
+        redoStack.removeAll()
+    }
+
+    /// Restore previous snapshot. No-op if undo stack is empty.
+    func undo() {
+        guard let snapshot = undoStack.popLast() else { return }
+        redoStack.append(entries)
+        entries = snapshot
+        hasUnsavedChanges = true
+    }
+
+    /// Re-apply a previously undone change. No-op if redo stack is empty.
+    func redo() {
+        guard let snapshot = redoStack.popLast() else { return }
+        undoStack.append(entries)
+        entries = snapshot
+        hasUnsavedChanges = true
+    }
+
+    private func clearUndoStacks() {
+        undoStack.removeAll()
+        redoStack.removeAll()
+    }
+
     init(profileStore: ProfileStoring = ProfileStore(), autoLoad: Bool = true) {
         self.profileStore = profileStore
         self.profiles = profileStore.load()
@@ -99,6 +143,7 @@ final class HostsFileManager {
             originalContent = content
             parseHostsContent(content)
             hasUnsavedChanges = false
+            clearUndoStacks()
         } catch {
             showToast("Không thể đọc file /etc/hosts: \(error.localizedDescription)", type: .error)
         }
@@ -348,6 +393,7 @@ final class HostsFileManager {
     }
 
     func addEntry(ip: String, hostname: String, comment: String, tag: String? = nil) {
+        pushUndo()
         let entry = HostEntry(ip: ip, hostname: hostname, comment: comment, isEnabled: true, tag: tag)
         entries.append(entry)
         hasUnsavedChanges = true
@@ -356,6 +402,7 @@ final class HostsFileManager {
 
     func updateEntry(id: UUID, ip: String, hostname: String, comment: String, tag: String? = nil) {
         if let index = entries.firstIndex(where: { $0.id == id }) {
+            pushUndo()
             entries[index].ip = ip
             entries[index].hostname = hostname
             entries[index].comment = comment
@@ -385,6 +432,7 @@ final class HostsFileManager {
             showToast("Tag \"\(trimmed)\" đã tồn tại", type: .error)
             return
         }
+        pushUndo()
         if let tagIndex = tags.firstIndex(where: { $0.name == oldName }) {
             tags[tagIndex].name = trimmed
         }
@@ -399,6 +447,7 @@ final class HostsFileManager {
     }
 
     func deleteTag(name: String) {
+        pushUndo()
         tags.removeAll { $0.name == name }
         var updated = entries
         for i in updated.indices where updated[i].tag == name {
@@ -410,6 +459,7 @@ final class HostsFileManager {
     }
 
     func toggleTag(name: String) {
+        pushUndo()
         let state = tagState(name: name)
         // mixed or allEnabled → turn all off; allDisabled → turn all on
         let newState = state == .allDisabled
@@ -442,6 +492,7 @@ final class HostsFileManager {
 
     func moveEntryToTag(entryId: UUID, tag: String?) {
         if let index = entries.firstIndex(where: { $0.id == entryId }) {
+            pushUndo()
             entries[index].tag = tag
             hasUnsavedChanges = true
         }
@@ -452,6 +503,7 @@ final class HostsFileManager {
     }
 
     func deleteEntry(id: UUID) {
+        pushUndo()
         entries.removeAll { $0.id == id }
         hasUnsavedChanges = true
     }
@@ -459,6 +511,7 @@ final class HostsFileManager {
     @discardableResult
     func duplicateEntry(id: UUID) -> HostEntry? {
         guard let idx = entries.firstIndex(where: { $0.id == id }) else { return nil }
+        pushUndo()
         let source = entries[idx]
         let copy = HostEntry(
             ip: source.ip,
@@ -475,6 +528,7 @@ final class HostsFileManager {
 
     func toggleEntry(id: UUID) {
         if let index = entries.firstIndex(where: { $0.id == id }) {
+            pushUndo()
             entries[index].isEnabled.toggle()
             hasUnsavedChanges = true
         }
@@ -563,6 +617,7 @@ final class HostsFileManager {
             if success {
                 self.originalContent = content
                 self.hasUnsavedChanges = false
+                self.redoStack.removeAll()  // post-apply redo would re-create stale state
                 self.showToast("Đã áp dụng thành công!", type: .success)
             } else if let error = error {
                 self.showToast("Lỗi: \(error)", type: .error)
@@ -572,6 +627,7 @@ final class HostsFileManager {
     }
 
     func replaceContentFromRawText(_ text: String) {
+        pushUndo()
         parseHostsContent(text)
         hasUnsavedChanges = true
     }
@@ -648,6 +704,7 @@ final class HostsFileManager {
 
             let parts = withoutComment.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
             if parts.count >= 2 && isValidIP(parts[0]) && !hostnameExists(parts[1]) {
+                if added == 0 { pushUndo() }  // single snapshot for whole import
                 entries.append(HostEntry(ip: parts[0], hostname: parts[1], comment: inlineComment))
                 added += 1
             }

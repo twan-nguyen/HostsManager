@@ -7,7 +7,10 @@ struct StatusBarView: View {
     let pendingChanges: Int
     let isApplying: Bool
     var sudoOK: Bool = false
+    var canUndo: Bool = false
+    var canRedo: Bool = false
     var onUndo: () -> Void = {}
+    var onRedo: () -> Void = {}
     var onApply: () -> Void = {}
 
     private var filePathText: String {
@@ -37,6 +40,7 @@ struct StatusBarView: View {
             Spacer()
 
             undoButton
+            redoButton
             applyButton
         }
         .padding(.horizontal, 14)
@@ -78,10 +82,10 @@ struct StatusBarView: View {
 
     private var undoButton: some View {
         Button(action: onUndo) {
-            Text("Hoàn tác")
+            Image(systemName: "arrow.uturn.backward")
                 .font(.system(size: 10.5))
                 .foregroundStyle(Color.dsTextSecondary)
-                .padding(.horizontal, DSSpacing.p2)
+                .padding(.horizontal, 6)
                 .padding(.vertical, 3)
                 .overlay(
                     RoundedRectangle(cornerRadius: DSRadius.sm)
@@ -89,8 +93,27 @@ struct StatusBarView: View {
                 )
         }
         .buttonStyle(.plain)
-        .disabled(pendingChanges == 0)
-        .opacity(pendingChanges == 0 ? 0.4 : 1)
+        .disabled(!canUndo)
+        .opacity(canUndo ? 1 : 0.4)
+        .help("Hoàn tác (⌘Z)")
+    }
+
+    private var redoButton: some View {
+        Button(action: onRedo) {
+            Image(systemName: "arrow.uturn.forward")
+                .font(.system(size: 10.5))
+                .foregroundStyle(Color.dsTextSecondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .strokeBorder(Color.dsBorderSecondary, lineWidth: 0.5)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!canRedo)
+        .opacity(canRedo ? 1 : 0.4)
+        .help("Làm lại (⌘⇧Z)")
     }
 
     private var applyButton: some View {
