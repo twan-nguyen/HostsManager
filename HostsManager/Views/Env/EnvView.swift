@@ -23,6 +23,7 @@ struct EnvView: View {
                 }
             }
         }
+        .navigationSplitViewStyle(.balanced)
     }
 
     @ViewBuilder

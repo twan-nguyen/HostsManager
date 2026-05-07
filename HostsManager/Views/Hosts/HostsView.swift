@@ -45,6 +45,7 @@ struct HostsView: View {
                 }
             }
         }
+        .navigationSplitViewStyle(.balanced)
         .sheet(isPresented: $showAddSheet) {
             EntryFormSheet(hostsManager: hostsManager, mode: .add)
         }
