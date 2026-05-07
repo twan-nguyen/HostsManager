@@ -199,7 +199,7 @@ final class HostsFileManager {
     // MARK: - Profile sync
 
     /// Reconcile `profiles` with `tags`:
-    /// - For each tag without a matching profile: create one with default (purple) color.
+    /// - For each tag without a matching profile: create one with a guessed-from-name color.
     /// - Orphan profiles (no current tag) are preserved — metadata survives tag removal.
     /// Persists via `profileStore` after change.
     private func syncProfilesWithTags() {
@@ -208,7 +208,7 @@ final class HostsFileManager {
             let nextShortcut = (profiles.compactMap(\.shortcutNumber).max() ?? 0) + 1
             profiles.append(Profile(
                 name: tag.name,
-                color: .purple,
+                color: Self.guessColor(for: tag.name, existing: profiles),
                 shortcutNumber: nextShortcut <= 9 ? nextShortcut : nil
             ))
             changed = true
@@ -216,6 +216,19 @@ final class HostsFileManager {
         if changed {
             profileStore.save(profiles)
         }
+    }
+
+    /// Heuristic color picker. Honors common semantic names (release/production/master),
+    /// otherwise rotates through the palette based on existing profile count.
+    private static func guessColor(for name: String, existing: [Profile]) -> ProfileColor {
+        let key = name.lowercased()
+        if key.contains("release") { return .purple }
+        if key.contains("prod")    { return .green }
+        if key.contains("master")  { return .amber }
+        if key.contains("dev") || key.contains("local") { return .blue }
+        if key.contains("test") || key.contains("staging") { return .red }
+        let palette = ProfileColor.allCases
+        return palette[existing.count % palette.count]
     }
 
     // MARK: - Profile CRUD

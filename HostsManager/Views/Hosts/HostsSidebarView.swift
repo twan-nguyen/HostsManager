@@ -108,7 +108,7 @@ struct SidebarView: View {
             }
         } label: {
             HStack(spacing: 8) {
-                StatusDot(color: .ds(profile.color), size: 6, glow: isActive)
+                StatusDot(color: .ds(profile.color), size: 8, glow: isActive)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(profile.name)
                         .font(.system(size: 11.5, weight: isActive ? .medium : .regular))
