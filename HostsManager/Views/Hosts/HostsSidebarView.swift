@@ -140,6 +140,7 @@ struct SidebarView: View {
             )
         }
         .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.18), value: isActive)
         .contextMenu {
             Button {
                 renameTarget = profile

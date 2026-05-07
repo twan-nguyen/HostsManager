@@ -246,6 +246,8 @@ struct HostsView: View {
         return nil
     }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private var entriesListView: some View {
         let filtered = hostsManager.filteredEntries(
             filter: currentFilter,
@@ -260,6 +262,8 @@ struct HostsView: View {
                 entriesTable(filtered)
             }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: currentTag)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: currentFilter)
     }
 
     private var emptyView: some View {

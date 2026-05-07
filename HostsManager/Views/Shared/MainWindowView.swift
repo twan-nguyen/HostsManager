@@ -49,12 +49,17 @@ struct MainWindowView: View {
 
     // MARK: - Content routing
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @ViewBuilder
     private var content: some View {
-        switch selectedTab {
-        case .hosts: HostsView()
-        case .env:   EnvView()
+        ZStack {
+            switch selectedTab {
+            case .hosts: HostsView().transition(.opacity)
+            case .env:   EnvView().transition(.opacity)
+            }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectedTab)
     }
 
     // MARK: - Derived state

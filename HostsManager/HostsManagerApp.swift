@@ -38,7 +38,9 @@ struct HostsManagerApp: App {
         }
 
         Settings {
-            EmptyView()
+            SettingsView()
+                .environment(hostsManager)
+                .environment(envManager)
         }
     }
 
