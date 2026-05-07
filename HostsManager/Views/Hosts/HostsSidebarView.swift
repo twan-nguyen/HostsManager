@@ -20,12 +20,6 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Pinned at top: add-profile button (always visible regardless of scroll).
-            addProfileButton
-                .padding(.horizontal, DSSpacing.p2)
-                .padding(.top, DSSpacing.p3)
-                .padding(.bottom, DSSpacing.p2)
-
             // Profiles list scrolls; everything below is pinned so the user always
             // sees the filter counts + tools without needing to scroll past profiles.
             ScrollView {
@@ -33,6 +27,7 @@ struct SidebarView: View {
                     profilesSection
                 }
                 .padding(.horizontal, DSSpacing.p2)
+                .padding(.top, DSSpacing.p3)
                 .padding(.bottom, DSSpacing.p2)
             }
 
@@ -45,13 +40,19 @@ struct SidebarView: View {
             }
             .padding(.horizontal, DSSpacing.p2)
             .padding(.top, DSSpacing.p2)
-            .padding(.bottom, DSSpacing.p3)
+            .padding(.bottom, DSSpacing.p2)
             .background(Color.dsBackgroundSidebar)
             .overlay(alignment: .top) {
                 Rectangle().fill(Color.dsBorderTertiary).frame(height: 0.5)
             }
+
+            // Pinned at bottom: add-profile button (matches EnvSidebarView footer).
+            addProfileButton
+                .padding(.horizontal, DSSpacing.p2)
+                .padding(.bottom, DSSpacing.p3)
+                .padding(.top, DSSpacing.p2)
+                .background(Color.dsBackgroundSidebar)
         }
-        .frame(maxHeight: .infinity)
         .background(Color.dsBackgroundSidebar)
         .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
         .sheet(isPresented: $showCreateProfileSheet) { createProfileSheet }
