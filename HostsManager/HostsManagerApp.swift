@@ -118,8 +118,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Extend custom TitleBarView all the way to the top of the window so traffic
     /// lights overlay our gradient bg instead of leaving a dark gap above.
+    /// Filter to content windows only — MenuBarExtra creates a panel window without
+    /// traffic lights, and applying fullSizeContentView to it can corrupt the layout
+    /// of the main window when the observer re-fires.
     private func configureWindows() {
         for window in NSApp.windows {
+            // standardWindowButton(.closeButton) is non-nil only on real content windows.
+            guard window.standardWindowButton(.closeButton) != nil else { continue }
             window.titlebarAppearsTransparent = true
             window.styleMask.insert(.fullSizeContentView)
             window.titleVisibility = .hidden
