@@ -28,6 +28,14 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
             }
 
+            Section("Menu Bar") {
+                @AppStorage("showMenuBarExtra") var showMenuBar: Bool = true
+                Toggle("Hiện ở menu bar", isOn: $showMenuBar)
+                Text("Cho phép switch profile nhanh từ menu bar mà không cần mở app.")
+                    .font(.dsCaption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Hệ thống") {
                 Text("Hosts Manager v\(appVersion)")
                     .font(.dsCaption)

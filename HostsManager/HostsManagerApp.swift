@@ -5,9 +5,16 @@ struct HostsManagerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var hostsManager = HostsFileManager()
     @State private var envManager = EnvFileManager()
+    @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    }
+
+    /// Active profile for the menu bar status item title (color dot + name).
+    private var activeProfile: Profile? {
+        guard let id = hostsManager.activeProfileID else { return nil }
+        return hostsManager.profiles.first { $0.id == id }
     }
 
     var body: some Scene {
@@ -49,6 +56,33 @@ struct HostsManagerApp: App {
             SettingsView()
                 .environment(hostsManager)
                 .environment(envManager)
+        }
+
+        // Menu bar quick switch — togglable via Settings.
+        // Title shows active profile color dot + name (or generic icon if none active).
+        MenuBarExtra(isInserted: $showMenuBarExtra) {
+            MenuBarContentView()
+                .environment(hostsManager)
+        } label: {
+            menuBarLabel
+        }
+        .menuBarExtraStyle(.window)
+    }
+
+    /// Status bar label — colored dot + active profile name when set, otherwise a
+    /// generic globe icon. Re-renders when activeProfileID changes via SwiftUI.
+    @ViewBuilder
+    private var menuBarLabel: some View {
+        if let profile = activeProfile {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(Color.ds(profile.color))
+                    .frame(width: 8, height: 8)
+                Text(profile.name)
+                    .font(.system(size: 12))
+            }
+        } else {
+            Image(systemName: "globe")
         }
     }
 
