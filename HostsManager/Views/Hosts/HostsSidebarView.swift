@@ -29,7 +29,9 @@ struct SidebarView: View {
                 .padding(.horizontal, DSSpacing.p2)
                 .padding(.top, DSSpacing.p3)
                 .padding(.bottom, DSSpacing.p2)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
+            .frame(maxHeight: .infinity)
 
             VStack(alignment: .leading, spacing: DSSpacing.p4) {
                 filterSection
