@@ -1,6 +1,6 @@
-name: HostsManager
+name: Devly
 options:
-  bundleIdPrefix: com.hostsmanager
+  bundleIdPrefix: com.devly
   deploymentTarget:
     macOS: "15.0"
   xcodeVersion: "15.0"
@@ -15,55 +15,55 @@ settings:
     CODE_SIGN_STYLE: Manual
     SWIFT_VERSION: "5.9"
 targets:
-  HostsManager:
+  Devly:
     type: application
     platform: macOS
     sources:
-      - HostsManager
+      - Devly
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_LSUIElement: NO
-        INFOPLIST_KEY_CFBundleDisplayName: HostsManager
-        CODE_SIGN_ENTITLEMENTS: HostsManager/HostsManager.entitlements
-        PRODUCT_BUNDLE_IDENTIFIER: com.hostsmanager.app
-        SWIFT_OBJC_BRIDGING_HEADER: HostsManager/HostsManager-Bridging-Header.h
+        INFOPLIST_KEY_CFBundleDisplayName: Devly
+        CODE_SIGN_ENTITLEMENTS: Devly/Devly.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.devly.app
+        SWIFT_OBJC_BRIDGING_HEADER: Devly/Devly-Bridging-Header.h
     dependencies:
       - sdk: Security.framework
-  HostsManagerTests:
+  DevlyTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - Tests
     dependencies:
-      - target: HostsManager
+      - target: Devly
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: com.hostsmanager.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.devly.app.tests
         BUNDLE_LOADER: "$(TEST_HOST)"
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/HostsManager.app/Contents/MacOS/HostsManager"
-  HostsManagerUITests:
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Devly.app/Contents/MacOS/Devly"
+  DevlyUITests:
     type: bundle.ui-testing
     platform: macOS
     sources:
       - UITests
     dependencies:
-      - target: HostsManager
+      - target: Devly
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: com.hostsmanager.app.uitests
-        TEST_TARGET_NAME: HostsManager
+        PRODUCT_BUNDLE_IDENTIFIER: com.devly.app.uitests
+        TEST_TARGET_NAME: Devly
 schemes:
-  HostsManager:
+  Devly:
     build:
       targets:
-        HostsManager: all
-        HostsManagerTests: [test]
-        HostsManagerUITests: [test]
+        Devly: all
+        DevlyTests: [test]
+        DevlyUITests: [test]
     test:
       targets:
-        - HostsManagerTests
-        - HostsManagerUITests
+        - DevlyTests
+        - DevlyUITests
       gatherCoverageData: true

@@ -1,6 +1,6 @@
 import Testing
 import AppKit
-@testable import HostsManager
+@testable import Devly
 
 @Suite("WindowChromeConfigurator")
 @MainActor

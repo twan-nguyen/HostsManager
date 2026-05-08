@@ -1,6 +1,6 @@
 import Testing
 import SwiftUI
-@testable import HostsManager
+@testable import Devly
 
 @Suite("Color hex initializer")
 struct ColorHexTests {

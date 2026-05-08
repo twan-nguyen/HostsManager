@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import HostsManager
+@testable import Devly
 
 /// In-memory profile store stub — keeps tests fast and isolated from UserDefaults.
 private final class StubProfileStore: ProfileStoring {

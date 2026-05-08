@@ -1,4 +1,4 @@
-APP_NAME = HostsManager
+APP_NAME = Devly
 VERSION = 2.2.1
 BUILD_DIR = build
 RELEASE_DIR = release

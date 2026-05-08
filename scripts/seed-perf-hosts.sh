@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # seed-perf-hosts.sh — sinh N host entries vào /etc/hosts dưới tag PERF_TEST.
-# Dùng để benchmark scroll perf trong HostsManager.
+# Dùng để benchmark scroll perf trong Devly.
 #
 # Usage:
 #   ./scripts/seed-perf-hosts.sh seed [count]   # mặc định count=300
@@ -14,7 +14,7 @@ HOSTS_FILE="/etc/hosts"
 TAG_NAME="PERF_TEST"
 TAG_START="## [tag:${TAG_NAME}]"
 TAG_END="## [/tag:${TAG_NAME}]"
-TMP_FILE="$(mktemp -t hostsmanager-perf.XXXXXX)"
+TMP_FILE="$(mktemp -t devly-perf.XXXXXX)"
 trap 'rm -f "$TMP_FILE"' EXIT
 
 cmd="${1:-seed}"
@@ -50,7 +50,7 @@ case "$cmd" in
             echo "$TAG_END"
         } | sudo tee -a "$HOSTS_FILE" > /dev/null
 
-        echo "==> Done. Mở HostsManager → tag PERF_TEST sẽ xuất hiện."
+        echo "==> Done. Mở Devly → tag PERF_TEST sẽ xuất hiện."
         echo "    Cleanup: $0 clean"
         ;;
     clean)

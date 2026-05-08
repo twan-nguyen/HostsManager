@@ -27,8 +27,8 @@ jobs:
 
       - name: Build Universal Binary
         run: |
-          xcodebuild -project HostsManager.xcodeproj \
-            -scheme HostsManager \
+          xcodebuild -project Devly.xcodeproj \
+            -scheme Devly \
             -configuration Release \
             -derivedDataPath build \
             ARCHS="arm64 x86_64" \
@@ -39,41 +39,41 @@ jobs:
       - name: Package ZIP
         run: |
           cd build/Build/Products/Release
-          zip -r HostsManager-${{ github.ref_name }}.zip HostsManager.app
+          zip -r Devly-${{ github.ref_name }}.zip Devly.app
 
       - name: Calculate SHA256
         id: sha
         run: |
-          SHA=$(shasum -a 256 build/Build/Products/Release/HostsManager-${{ github.ref_name }}.zip | awk '{print $1}')
+          SHA=$(shasum -a 256 build/Build/Products/Release/Devly-${{ github.ref_name }}.zip | awk '{print $1}')
           echo "sha256=$SHA" >> $GITHUB_OUTPUT
 
       - name: Create DMG
         run: |
-          hdiutil create -volname "HostsManager" \
-            -srcfolder build/Build/Products/Release/HostsManager.app \
+          hdiutil create -volname "Devly" \
+            -srcfolder build/Build/Products/Release/Devly.app \
             -ov -format UDZO \
-            build/HostsManager-${{ github.ref_name }}.dmg
+            build/Devly-${{ github.ref_name }}.dmg
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2.6.1
         with:
           files: |
-            build/Build/Products/Release/HostsManager-${{ github.ref_name }}.zip
-            build/HostsManager-${{ github.ref_name }}.dmg
+            build/Build/Products/Release/Devly-${{ github.ref_name }}.zip
+            build/Devly-${{ github.ref_name }}.dmg
           body: |
-            ## HostsManager ${{ github.ref_name }}
+            ## Devly ${{ github.ref_name }}
 
             ### SHA256
             - ZIP: `${{ steps.sha.outputs.sha256 }}`
 
             ### Cài đặt
             ```bash
-            brew install twan-nguyen/hostsmanager/hostsmanager
+            brew install twan-nguyen/devly/devly
             ```
 
             ### Cập nhật
             ```bash
-            brew update && brew upgrade hostsmanager
+            brew update && brew upgrade devly
             ```
 
             Hoặc tải file ZIP/DMG bên dưới.
@@ -94,16 +94,16 @@ jobs:
           fi
 
           rm -rf /tmp/homebrew-tap
-          git clone https://x-access-token:${TAP_REPO_TOKEN}@github.com/twan-nguyen/homebrew-hostsmanager.git /tmp/homebrew-tap
+          git clone https://x-access-token:${TAP_REPO_TOKEN}@github.com/twan-nguyen/homebrew-devly.git /tmp/homebrew-tap
           cd /tmp/homebrew-tap
 
-          sed -i '' "s/version \".*\"/version \"${VERSION_CLEAN}\"/" Casks/hostsmanager.rb
-          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256}\"/" Casks/hostsmanager.rb
+          sed -i '' "s/version \".*\"/version \"${VERSION_CLEAN}\"/" Casks/devly.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256}\"/" Casks/devly.rb
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Casks/hostsmanager.rb
-          git commit -m "chore: update hostsmanager to v${VERSION_CLEAN}"
+          git add Casks/devly.rb
+          git commit -m "chore: update devly to v${VERSION_CLEAN}"
           git push origin main
 
           echo "✓ Homebrew tap updated to v${VERSION_CLEAN}"

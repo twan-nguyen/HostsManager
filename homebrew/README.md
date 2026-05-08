@@ -1,21 +1,21 @@
-# Homebrew Tap: HostsManager
+# Homebrew Tap: Devly
 
 ## Cài đặt
 
 ```bash
-brew tap twan-nguyen/hostsmanager
-brew install hostsmanager
+brew tap twan-nguyen/devly
+brew install devly
 ```
 
 ## Cập nhật
 
 ```bash
-brew upgrade hostsmanager
+brew upgrade devly
 ```
 
 ## Gỡ cài đặt
 
 ```bash
-brew uninstall hostsmanager
-brew untap twan-nguyen/hostsmanager
+brew uninstall devly
+brew untap twan-nguyen/devly
 ```

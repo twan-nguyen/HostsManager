@@ -5,7 +5,7 @@ import SwiftUI
 /// menu bar minimal.
 struct MenuBarContentView: View {
     var body: some View {
-        Button("Mở Hosts Manager") {
+        Button("Mở Devly") {
             NSApp.activate(ignoringOtherApps: true)
             for window in NSApp.windows where window.canBecomeKey {
                 window.makeKeyAndOrderFront(nil)

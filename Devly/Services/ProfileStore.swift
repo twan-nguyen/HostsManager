@@ -9,7 +9,7 @@ protocol ProfileStoring {
 
 /// UserDefaults-backed implementation. Defaults to standard suite; injectable for tests.
 final class ProfileStore: ProfileStoring {
-    static let storageKey = "com.hostsmanager.profiles.v2"
+    static let storageKey = "com.devly.profiles.v2"
 
     private let defaults: UserDefaults
     private let key: String

@@ -19,7 +19,7 @@ final class HostsFileWatcher {
     private var source: DispatchSourceFileSystemObject?
     private var fileDescriptor: Int32 = -1
     private var debounceWorkItem: DispatchWorkItem?
-    private let queue = DispatchQueue(label: "com.hostsmanager.filewatcher", qos: .utility)
+    private let queue = DispatchQueue(label: "com.devly.filewatcher", qos: .utility)
     private var isSuspended = false
 
     init(path: String = "/etc/hosts", debounceInterval: TimeInterval = 0.4) {

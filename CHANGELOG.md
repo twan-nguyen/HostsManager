@@ -64,7 +64,7 @@
 - **Custom DSToggle**: 24×13 switch spring animation, respects accessibilityReduceMotion.
 - **Custom HostRowView**: IP color tokens, source badge pill, hover overlay, alternating row tint.
 - **Custom EnvRowView**: KEY mono blue + value mono amber, blank/comment lines italic.
-- **Tests target**: `HostsManagerTests` với Swift Testing framework. 48 tests covering Profile/ProfileColor models, ProfileStore persistence, HostsParser round-trip, Profile+HostsFileManager integration, undo/redo, file watcher, syntax highlighter. UITests target +6 XCUITest cases (window chrome, tab switch, sidebar/search, ⌘1 shortcut).
+- **Tests target**: `DevlyTests` với Swift Testing framework. 48 tests covering Profile/ProfileColor models, ProfileStore persistence, HostsParser round-trip, Profile+HostsFileManager integration, undo/redo, file watcher, syntax highlighter. UITests target +6 XCUITest cases (window chrome, tab switch, sidebar/search, ⌘1 shortcut).
 - **Undo/Redo**: snapshot stacks (cap 50) wired to ⌘Z / ⌘⇧Z và StatusBar buttons. Coalesces no-op duplicates; redo cleared sau Apply. Covers toggle/add/update/delete/duplicate/import/tag operations.
 - **External file change detection**: `HostsFileWatcher` (DispatchSource on `/etc/hosts`, 400ms debounce) flag `externalChangeDetected`. Breadcrumb hiện amber warning + click-to-reload khi Docker/terminal/tool khác modify file. Self-writes suppressed qua `suspend()`/`resume()` quanh `applyChanges`.
 - **MenuBarExtra quick switch**: 260px dropdown với active profile, switchable list, ⌘1-9 hints, Open/Quit actions. Title hiện active profile color dot + name. Toggle qua Settings → General → "Hiện ở menu bar".

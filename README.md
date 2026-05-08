@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="design/app-icon-1024.png" width="180" alt="HostsManager icon"/>
+  <img src="design/app-icon-1024.png" width="180" alt="Devly icon"/>
 </p>
 
-<h1 align="center">HostsManager</h1>
+<h1 align="center">Devly</h1>
 
 <p align="center">
   Ứng dụng native macOS để quản lý file <code>/etc/hosts</code> và <code>.env</code> files của repo dev với giao diện thiết kế dành riêng cho developer.
@@ -54,11 +54,11 @@
 ### Homebrew (khuyên dùng)
 
 ```bash
-brew tap twan-nguyen/hostsmanager
-brew install hostsmanager
+brew tap twan-nguyen/devly
+brew install devly
 
 # Cập nhật lên phiên bản mới
-brew update && brew upgrade hostsmanager
+brew update && brew upgrade devly
 ```
 
 ### Build từ source
@@ -74,7 +74,7 @@ make install
 
 # Cách 3: Xcode
 xcodegen generate
-open HostsManager.xcodeproj
+open Devly.xcodeproj
 # Nhấn Cmd+R để chạy
 ```
 

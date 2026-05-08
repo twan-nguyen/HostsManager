@@ -2,25 +2,25 @@
 
 ## Tổng quan
 
-HostsManager được phân phối qua Homebrew Cask thông qua một tap riêng.
+Devly được phân phối qua Homebrew Cask thông qua một tap riêng.
 
 ## Các bước phát hành
 
 ### 1. Tạo Homebrew Tap Repository
 
-Tạo repo trên GitHub tên `homebrew-hostsmanager`, copy thư mục `homebrew/` vào repo đó:
+Tạo repo trên GitHub tên `homebrew-devly`, copy thư mục `homebrew/` vào repo đó:
 
 ```
-homebrew-hostsmanager/
+homebrew-devly/
 ├── Casks/
-│   └── hostsmanager.rb
+│   └── devly.rb
 └── .github/workflows/
     └── update-cask.yml
 ```
 
 ### 2. Cấu hình GitHub Secrets
 
-Trong repo chính (`HostsManager`), thêm secret:
+Trong repo chính (`Devly`), thêm secret:
 - `TAP_REPO_TOKEN`: Personal Access Token có quyền `repo` để dispatch event sang tap repo
 
 ### 3. Phát hành phiên bản mới
@@ -42,7 +42,7 @@ Script sẽ:
 
 ### 5. Merge PR trong tap repo
 
-Review và merge PR tự động trong repo `homebrew-hostsmanager`.
+Review và merge PR tự động trong repo `homebrew-devly`.
 
 ## Cài đặt thủ công (không qua CI)
 

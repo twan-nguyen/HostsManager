@@ -37,7 +37,7 @@ struct SettingsView: View {
             }
 
             Section("Hệ thống") {
-                Text("Hosts Manager v\(appVersion)")
+                Text("Devly v\(appVersion)")
                     .font(.dsCaption)
                     .foregroundStyle(.secondary)
             }

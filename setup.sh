@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== HostsManager Build Script ==="
+echo "=== Devly Build Script ==="
 
 # Check dependencies
 if ! command -v xcodegen &> /dev/null; then
@@ -13,8 +13,8 @@ echo "1. Generating Xcode project..."
 xcodegen generate
 
 echo "2. Building universal binary..."
-xcodebuild -project HostsManager.xcodeproj \
-    -scheme HostsManager \
+xcodebuild -project Devly.xcodeproj \
+    -scheme Devly \
     -configuration Release \
     -derivedDataPath build \
     ARCHS="arm64 x86_64" \
@@ -24,7 +24,7 @@ xcodebuild -project HostsManager.xcodeproj \
 
 echo ""
 echo "=== Build complete! ==="
-echo "App: build/Build/Products/Release/HostsManager.app"
+echo "App: build/Build/Products/Release/Devly.app"
 echo ""
-echo "To install: cp -R build/Build/Products/Release/HostsManager.app /Applications/"
+echo "To install: cp -R build/Build/Products/Release/Devly.app /Applications/"
 echo "Or run: make install"

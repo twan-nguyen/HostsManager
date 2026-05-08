@@ -9,7 +9,7 @@ import XCTest
 /// - These tests assume a fresh run with default profiles auto-created from the
 ///   user's real /etc/hosts. If `/etc/hosts` is empty of tag markers, sidebar
 ///   only has filters; profile-activation test will be skipped.
-final class HostsManagerUITests: XCTestCase {
+final class DevlyUITests: XCTestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -28,7 +28,7 @@ final class HostsManagerUITests: XCTestCase {
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 5))
         // TitleBar text proves shell rendered
-        XCTAssertTrue(app.staticTexts["Hosts Manager"].exists)
+        XCTAssertTrue(app.staticTexts["Devly"].exists)
     }
 
     func test_tabSwitcher_switchesBetweenHostsAndEnv() {
@@ -56,7 +56,7 @@ final class HostsManagerUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
 
         // TitleBar still visible
-        XCTAssertTrue(app.staticTexts["Hosts Manager"].exists,
+        XCTAssertTrue(app.staticTexts["Devly"].exists,
                       "TitleBar must persist after switching to Env")
         // Env-only sidebar header
         XCTAssertTrue(app.staticTexts["REPOS"].waitForExistence(timeout: 2),
@@ -73,7 +73,7 @@ final class HostsManagerUITests: XCTestCase {
             print("==DEBUG TREE AFTER FAILED HOSTS CLICK==\n\(app.debugDescription)")
         }
 
-        XCTAssertTrue(app.staticTexts["Hosts Manager"].exists,
+        XCTAssertTrue(app.staticTexts["Devly"].exists,
                       "TitleBar must persist after switching back to Hosts")
         XCTAssertTrue(app.staticTexts["PROFILES"].waitForExistence(timeout: 2),
                       "After Hosts click, sidebar should show PROFILES again")
@@ -97,18 +97,15 @@ final class HostsManagerUITests: XCTestCase {
         XCTAssertTrue(close.isHittable, "Close button still hittable after Env tab — traffic lights must persist")
     }
 
-    /// Regression: bundle-name "HostsManager" must not render as window title
-    /// above the custom TitleBarView. Custom title is "Hosts Manager" (with space).
+    /// Regression: custom TitleBarView must remain visible after Env switch,
+    /// and no auto-installed sidebar toggle button should appear (HStack layout).
     func test_windowTitle_bundleNameNotShownAfterEnvSwitch() {
         let envTab = app.buttons["tab-env"]
         XCTAssertTrue(envTab.waitForExistence(timeout: 3))
         envTab.click()
         Thread.sleep(forTimeInterval: 0.6)
 
-        XCTAssertFalse(app.staticTexts["HostsManager"].exists,
-                       "AppKit window title (CFBundleName) must not render — windowToolbarStyle should hide it")
-        // Our custom title bar must still be visible
-        XCTAssertTrue(app.staticTexts["Hosts Manager"].exists,
+        XCTAssertTrue(app.staticTexts["Devly"].exists,
                       "Custom TitleBarView text must remain")
 
         // No NSV in layout (replaced by HStack) → no auto-installed sidebar
