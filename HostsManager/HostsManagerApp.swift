@@ -71,7 +71,7 @@ struct HostsManagerApp: App {
     /// SwiftUI shapes/masks render as a blank disc.
     @ViewBuilder
     private var menuBarLabel: some View {
-        Image(systemName: "list.bullet")
+        Image(systemName: "rectangle.stack.fill")
     }
 
     /// One menu item per profile (⌘1..⌘9). Hidden in production menu via empty title? — kept visible
