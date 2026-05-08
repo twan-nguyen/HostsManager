@@ -26,10 +26,7 @@ struct DSToggle: View {
         .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.4 : 1)
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.8),
-            value: isOn
-        )
+        .animation(reduceMotion ? nil : .dsSnappy, value: isOn)
         .accessibilityLabel("Toggle entry")
         .accessibilityValue(isOn ? "On" : "Off")
     }

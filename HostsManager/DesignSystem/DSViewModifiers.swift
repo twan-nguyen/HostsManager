@@ -27,7 +27,7 @@ struct DSRowHoverModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(isHovering ? Color.white.opacity(0.04) : Color.clear)
-            .animation(.easeInOut(duration: 0.15), value: isHovering)
+            .animation(.dsSnappy, value: isHovering)
             .onHover { isHovering = $0 }
     }
 }
@@ -47,6 +47,7 @@ struct DSSidebarItemModifier: ViewModifier {
                     .fill(isSelected ? Color.white.opacity(0.06) : Color.clear)
             )
             .contentShape(Rectangle())
+            .animation(.dsSmooth, value: isSelected)
     }
 }
 

@@ -102,6 +102,7 @@ struct EnvSidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .animation(.dsSmooth, value: isActive)
         .help(exists ? repo.path : "\(repo.path)\n(thư mục không tồn tại)")
         .contextMenu {
             Button {

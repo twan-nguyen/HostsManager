@@ -35,6 +35,7 @@ struct EnvRowView: View {
         }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
+        .animation(.dsSnappy, value: isHovering)
         .onTapGesture(count: 2) {
             if !entry.isBlankOrComment { onEdit() }
         }

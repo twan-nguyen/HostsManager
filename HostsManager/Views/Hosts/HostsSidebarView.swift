@@ -178,7 +178,7 @@ struct SidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .animation(.easeInOut(duration: 0.18), value: isActive)
+        .animation(.dsSmooth, value: isActive)
         .accessibilityIdentifier("profile-row-\(profile.name)")
         .contextMenu {
             Button {
