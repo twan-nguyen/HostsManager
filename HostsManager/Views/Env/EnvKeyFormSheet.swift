@@ -33,44 +33,38 @@ struct EnvKeyFormSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Text(title)
-                .font(.title3.bold())
-                .padding(.top, 20)
-                .padding(.bottom, 12)
+        DSSheetContainer(
+            title: title,
+            bodyContent: { formBody },
+            footer: { footerButtons }
+        )
+        .frame(width: 460)
+        .onAppear { populate() }
+    }
 
-            Form {
-                Section {
-                    TextField("KEY", text: $key, prompt: Text("VITE_API_URL"))
-                        .font(.system(.body, design: .monospaced))
-                        .autocorrectionDisabled()
-                    TextField("Value", text: $value, prompt: Text("https://api.example.com"))
-                        .font(.system(.body, design: .monospaced))
-                    TextField("Ghi chú", text: $comment, prompt: Text("Tuỳ chọn"))
-                }
-            }
-            .formStyle(.grouped)
+    private var formBody: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.p3) {
+            DSField("KEY", text: $key, prompt: "VITE_API_URL", monospaced: true, autocorrect: false)
+            DSField("Value", text: $value, prompt: "https://api.example.com", monospaced: true)
+            DSField("Ghi chú", text: $comment, prompt: "Tuỳ chọn")
 
             if !errorMessage.isEmpty {
                 Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.caption)
-                    .padding(.horizontal, 20)
+                    .foregroundStyle(Color.dsProfileRed)
+                    .font(.dsCaption)
             }
-
-            HStack {
-                Button("Hủy") { dismiss() }
-                    .keyboardShortcut(.escape)
-                Spacer()
-                Button(isEditing ? "Cập nhật" : "Thêm") { save() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.return)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
         }
-        .frame(width: 440, height: 300)
-        .onAppear { populate() }
+    }
+
+    private var footerButtons: some View {
+        HStack {
+            Button("Hủy") { dismiss() }
+                .keyboardShortcut(.escape)
+            Spacer()
+            Button(isEditing ? "Cập nhật" : "Thêm") { save() }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.return)
+        }
     }
 
     private func populate() {

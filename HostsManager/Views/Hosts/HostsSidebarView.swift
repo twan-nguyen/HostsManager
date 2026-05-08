@@ -266,35 +266,43 @@ struct SidebarView: View {
     // MARK: - Sheets
 
     private var createProfileSheet: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.p3) {
-            Text("Tạo profile mới")
-                .font(.dsHeading)
-            TextField("Tên profile", text: $newProfileName)
-                .textFieldStyle(.roundedBorder)
-            VStack(alignment: .leading, spacing: DSSpacing.p2) {
-                Text("Màu").font(.dsCaption)
-                HStack(spacing: DSSpacing.p2) {
-                    ForEach(ProfileColor.allCases) { color in
-                        ColorSwatch(
-                            color: color,
-                            isSelected: newProfileColor == color,
-                            action: { newProfileColor = color }
-                        )
+        DSSheetContainer(
+            title: "Tạo profile mới",
+            bodyContent: {
+                VStack(alignment: .leading, spacing: DSSpacing.p3) {
+                    DSField("Tên profile", text: $newProfileName, prompt: "vd: dev, prod...")
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Màu")
+                            .font(.dsLabel)
+                            .foregroundStyle(Color.dsTextSecondary)
+                        HStack(spacing: DSSpacing.p2) {
+                            ForEach(ProfileColor.allCases) { color in
+                                ColorSwatch(
+                                    color: color,
+                                    isSelected: newProfileColor == color,
+                                    action: { newProfileColor = color }
+                                )
+                            }
+                        }
                     }
                 }
-            }
-            HStack {
-                Spacer()
-                Button("Huỷ") { showCreateProfileSheet = false }
-                Button("Tạo") {
-                    _ = hostsManager.addProfile(name: newProfileName, color: newProfileColor)
-                    showCreateProfileSheet = false
+            },
+            footer: {
+                HStack {
+                    Button("Huỷ") { showCreateProfileSheet = false }
+                        .keyboardShortcut(.escape)
+                    Spacer()
+                    Button("Tạo") {
+                        _ = hostsManager.addProfile(name: newProfileName, color: newProfileColor)
+                        showCreateProfileSheet = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.return)
+                    .disabled(newProfileName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .keyboardShortcut(.defaultAction)
-                .disabled(newProfileName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-        }
-        .padding(DSSpacing.p4)
-        .frame(width: 320)
+        )
+        .frame(width: 380)
     }
 }

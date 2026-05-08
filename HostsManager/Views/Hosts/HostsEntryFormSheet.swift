@@ -33,74 +33,12 @@ struct EntryFormSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Text(title)
-                .font(.title3.bold())
-                .padding(.top, 20)
-                .padding(.bottom, 12)
-
-            Form {
-                Section {
-                    TextField("IP Address", text: $ip, prompt: Text("Ví dụ: 127.0.0.1"))
-                        .font(.system(.body, design: .monospaced))
-
-                    HStack(spacing: 8) {
-                        Text("Chọn nhanh")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        QuickIPButton(label: "127.0.0.1", ip: $ip)
-                        QuickIPButton(label: "0.0.0.0", ip: $ip)
-                        QuickIPButton(label: "::1", ip: $ip)
-                    }
-
-                    TextField("Hostname", text: $hostname, prompt: Text("Ví dụ: example.com"))
-                        .font(.system(.body, design: .monospaced))
-
-                    TextField("Ghi chú", text: $comment, prompt: Text("Tuỳ chọn"))
-                }
-
-                if !hostsManager.tags.isEmpty {
-                    Section {
-                        Picker("Tag", selection: $selectedTag) {
-                            Text("Không có tag")
-                                .frame(minWidth: 180, alignment: .leading)
-                                .tag("")
-                            ForEach(hostsManager.tags) { tag in
-                                Text(tag.name)
-                                    .frame(minWidth: 180, alignment: .leading)
-                                    .tag(tag.name)
-                            }
-                        }
-                    }
-                }
-            }
-            .formStyle(.grouped)
-
-            if !errorMessage.isEmpty {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.caption)
-                    .padding(.horizontal, 20)
-            }
-
-            HStack {
-                Button("Hủy") {
-                    dismiss()
-                }
-                .keyboardShortcut(.escape)
-
-                Spacer()
-
-                Button(isEditing ? "Cập nhật" : "Thêm") {
-                    save()
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.return)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-        }
-        .frame(width: 420, height: 360)
+        DSSheetContainer(
+            title: title,
+            bodyContent: { formBody },
+            footer: { footerButtons }
+        )
+        .frame(width: 460)
         .onAppear {
             if case .edit(let entry) = mode {
                 ip = entry.ip
@@ -108,6 +46,58 @@ struct EntryFormSheet: View {
                 comment = entry.comment
                 selectedTag = entry.tag ?? ""
             }
+        }
+    }
+
+    private var formBody: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.p3) {
+            DSField("IP Address", text: $ip, prompt: "127.0.0.1", monospaced: true) {
+                HStack(spacing: 6) {
+                    Text("Chọn nhanh")
+                        .font(.dsCaption)
+                        .foregroundStyle(Color.dsTextTertiary)
+                    QuickIPButton(label: "127.0.0.1", ip: $ip)
+                    QuickIPButton(label: "0.0.0.0", ip: $ip)
+                    QuickIPButton(label: "::1", ip: $ip)
+                }
+            }
+
+            DSField("Hostname", text: $hostname, prompt: "example.com", monospaced: true)
+
+            DSField("Ghi chú", text: $comment, prompt: "Tuỳ chọn")
+
+            if !hostsManager.tags.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Tag")
+                        .font(.dsLabel)
+                        .foregroundStyle(Color.dsTextSecondary)
+                    Picker("", selection: $selectedTag) {
+                        Text("Không có tag").tag("")
+                        ForEach(hostsManager.tags) { tag in
+                            Text(tag.name).tag(tag.name)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+            }
+
+            if !errorMessage.isEmpty {
+                Text(errorMessage)
+                    .foregroundStyle(Color.dsProfileRed)
+                    .font(.dsCaption)
+            }
+        }
+    }
+
+    private var footerButtons: some View {
+        HStack {
+            Button("Hủy") { dismiss() }
+                .keyboardShortcut(.escape)
+            Spacer()
+            Button(isEditing ? "Cập nhật" : "Thêm") { save() }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.return)
         }
     }
 
@@ -157,10 +147,17 @@ struct QuickIPButton: View {
     @Binding var ip: String
 
     var body: some View {
-        Button(label) {
-            ip = label
-        }
-        .buttonStyle(.bordered)
-        .font(.system(.caption, design: .monospaced))
+        Button(label) { ip = label }
+            .buttonStyle(.plain)
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(Color.dsTextSecondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(Color.white.opacity(0.05))
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.sm)
+                    .stroke(Color.dsBorderSecondary, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
     }
 }
