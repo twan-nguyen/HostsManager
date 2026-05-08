@@ -29,6 +29,7 @@ struct EnvRowView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
+        .animation(.dsSmooth, value: entry.isEnabled)
         .background(rowBackground)
         .overlay(alignment: .bottom) {
             Rectangle().fill(Color.dsBorderTertiary).frame(height: 0.5)

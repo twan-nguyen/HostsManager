@@ -56,6 +56,7 @@ struct HostRowView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .opacity(entry.isEnabled ? 1 : 0.5)
+        .animation(.dsSmooth, value: entry.isEnabled)
         .background(rowBackground)
         .overlay(alignment: .bottom) {
             Rectangle().fill(Color.dsBorderTertiary).frame(height: 0.5)
