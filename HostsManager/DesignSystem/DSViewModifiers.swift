@@ -46,6 +46,7 @@ struct DSSidebarItemModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: DSRadius.md)
                     .fill(isSelected ? Color.white.opacity(0.06) : Color.clear)
             )
+            .contentShape(Rectangle())
     }
 }
 

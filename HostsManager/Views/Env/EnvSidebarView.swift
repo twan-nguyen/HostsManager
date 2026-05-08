@@ -99,6 +99,7 @@ struct EnvSidebarView: View {
                         lineWidth: 0.5
                     )
             )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(exists ? repo.path : "\(repo.path)\n(thư mục không tồn tại)")
@@ -160,6 +161,7 @@ struct EnvSidebarView: View {
                     .strokeBorder(Color(hex: "#78b4ff").opacity(0.4), lineWidth: 0.5)
             )
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .padding(DSSpacing.p2)
