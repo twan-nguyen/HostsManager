@@ -285,12 +285,17 @@ struct HostsView: View {
         return Group {
             if filtered.isEmpty {
                 emptyView
+                    .transition(.opacity)
             } else {
                 entriesTable(filtered)
+                    // Force Table rebuild on sidebar switch so crossfade transition
+                    // can run — Table doesn't animate its own row diffs, so we
+                    // swap the whole instance instead of relying on row deltas.
+                    .id(sidebarSelection)
+                    .transition(.opacity)
             }
         }
-        .animation(reduceMotion ? nil : .dsSmooth, value: currentTag)
-        .animation(reduceMotion ? nil : .dsSnappy, value: currentFilter)
+        .animation(reduceMotion ? nil : .dsSmooth, value: sidebarSelection)
     }
 
     private var emptyView: some View {
@@ -306,45 +311,107 @@ struct HostsView: View {
     }
 
     private func entriesTable(_ filtered: [HostEntry]) -> some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                hostsListHeader
-                ForEach(Array(filtered.enumerated()), id: \.element.id) { index, entry in
-                    HostRowView(
-                        entry: entry,
-                        hostsManager: hostsManager,
-                        isAlternate: index.isMultiple(of: 2),
-                        onEdit: { editingEntry = entry },
-                        onDelete: {
-                            deleteTarget = entry
-                            showDeleteConfirm = true
-                        }
-                    )
+        // Native macOS Table = NSTableView underneath = real row recycling.
+        // Replaces previous LazyVStack which couldn't recycle and saturated CPU
+        // at ~30% with 300 entries (see plans/reports for benchmark history).
+        Table(filtered) {
+            TableColumn("") { entry in
+                DSToggle(isOn: Binding(
+                    get: { entry.isEnabled },
+                    set: { _ in hostsManager.toggleEntry(id: entry.id) }
+                ))
+            }
+            .width(HostRowLayout.toggle)
+
+            TableColumn("IP") { entry in
+                Text(entry.ip)
+                    .font(.dsMono)
+                    .foregroundStyle(ipColor(for: entry))
+                    .strikethrough(!entry.isEnabled, color: ipColor(for: entry))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(entry.ip)
+                    .opacity(entry.isEnabled ? 1 : 0.5)
+                    .animation(.dsSmooth, value: entry.isEnabled)
+            }
+            .width(HostRowLayout.ip)
+
+            TableColumn("Hostname") { entry in
+                Text(entry.hostname)
+                    .font(.system(size: 11.5, design: .monospaced))
+                    .foregroundStyle(Color.dsTextPrimary)
+                    .strikethrough(!entry.isEnabled, color: Color.dsTextPrimary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(entry.comment.isEmpty ? entry.hostname : "\(entry.hostname) — \(entry.comment)")
+                    .opacity(entry.isEnabled ? 1 : 0.5)
+                    .animation(.dsSmooth, value: entry.isEnabled)
+            }
+
+            TableColumn("Source") { entry in
+                if let tag = entry.tag {
+                    SourceBadge(kind: .profile(name: tag))
+                        .opacity(entry.isEnabled ? 1 : 0.5)
+                        .animation(.dsSmooth, value: entry.isEnabled)
                 }
+            }
+            .width(HostRowLayout.source)
+
+            TableColumn("") { entry in
+                Menu {
+                    rowContextMenu(for: entry)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.dsTextTertiary)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+            }
+            .width(HostRowLayout.menu)
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .contextMenu(forSelectionType: HostEntry.ID.self) { ids in
+            if let id = ids.first, let entry = filtered.first(where: { $0.id == id }) {
+                rowContextMenu(for: entry)
+            }
+        } primaryAction: { ids in
+            if let id = ids.first, let entry = filtered.first(where: { $0.id == id }) {
+                editingEntry = entry
             }
         }
         .background(Color.dsBackground)
     }
 
-    /// Column titles row above the host list. Widths defined in `HostRowLayout`.
-    private var hostsListHeader: some View {
-        HStack(spacing: DSSpacing.p2) {
-            Spacer().frame(width: HostRowLayout.toggle)
-            Text("IP")
-                .frame(width: HostRowLayout.ip, alignment: .leading)
-            Text("Hostname")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("Source")
-                .frame(width: HostRowLayout.source, alignment: .leading)
-            Spacer().frame(width: HostRowLayout.menu)
-        }
-        .font(.dsLabel)
-        .foregroundStyle(Color.dsTextTertiary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, DSSpacing.p2)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Color.dsBorderSecondary).frame(height: 0.5)
-        }
+    /// IP foreground color — block (0.0.0.0) red; localhost blue; remote default.
+    private func ipColor(for entry: HostEntry) -> Color {
+        if entry.ip == "0.0.0.0" { return Color.dsProfileRed }
+        if entry.ip == "127.0.0.1" && entry.hostname != "localhost" { return Color.dsIPLocalhost }
+        if entry.ip == "127.0.0.1" || entry.ip == "::1" { return Color.dsIPLocalhost }
+        return Color.dsIPRemote
     }
 
+    @ViewBuilder
+    private func rowContextMenu(for entry: HostEntry) -> some View {
+        Button { editingEntry = entry } label: { Label("Sửa", systemImage: "pencil") }
+        Button {
+            hostsManager.toggleEntry(id: entry.id)
+        } label: {
+            Label(
+                entry.isEnabled ? "Tắt" : "Bật",
+                systemImage: entry.isEnabled ? "pause.circle" : "play.circle"
+            )
+        }
+        Button {
+            _ = hostsManager.duplicateEntry(id: entry.id)
+        } label: { Label("Nhân đôi", systemImage: "plus.square.on.square") }
+        Divider()
+        Button(role: .destructive) {
+            deleteTarget = entry
+            showDeleteConfirm = true
+        } label: { Label("Xoá", systemImage: "trash") }
+    }
 }
