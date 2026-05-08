@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.2.0 — 2026-05-08
+
+### Added
+
+- **Color swatch picker** khi tạo profile mới (issue #1) — preview circle thật thay text Picker.
+- **Double-click row** mở edit sheet cho cả Host row + Env row (issue #2). Skip blank/comment lines.
+- **Unified popup theme**: `DSSheetContainer` + `DSField` shared components — tất cả sheet (Host/Env entry form, Env profile, Hosts import, Create profile) chuyển sang dark surface đồng bộ thay default Form `.grouped`.
+- **DSAnimation tokens** (`.dsSnappy` / `.dsSmooth` / `.dsBouncy` / `.dsFade`) thống nhất motion toàn app — spring-based curves cảm giác physical hơn.
+- **StatusBar/Breadcrumb motion**: pendingChanges badge slide-in, apply button cross-fade icon + numeric text transition, `sudo OK` shield uses `.symbolEffect(.replace)`.
+- **Row state animation**: opacity dim + strikethrough giờ animate khi toggle on/off (HostRow + EnvRow).
+
+### Changed
+
+- **`hasUnsavedChanges` is now derived** (HostsFileManager + EnvFile). Compares serialized content vs pristine snapshot taken at load/apply. Drops 18+ scattered manual flag setters across both managers.
+- **Toast color** muted xuống dark surface với accent border thay tinted-glass saturated.
+- **Menu bar icon**: SF Symbol `rectangle.stack.fill` thay app icon bitmap (fixed size 18×18, không đổi theo profile).
+- **Menu bar dropdown** strip xuống còn 2 mục: "Mở Hosts Manager" + "Thoát" (profile switching đã có ở sidebar).
+
+### Fixed
+
+- **Window drag**: chỉ cho phép kéo từ titlebar (`isMovableByWindowBackground = false`), không kéo được khi click body.
+- **Button hit area**: padded area nay clickable, không phải nhắm chính xác text (added `.contentShape(Rectangle())` cho profile rows, filter rows, repo rows, add buttons).
+- **Env Apply không ghi disk**: state shadowing — `EnvFilePane` có `@State selectedFilePath` nội bộ shadow `envManager.selectedFilePath`. Apply guard fail im lặng. Fix: computed proxy delegate.
+- **Undo về load state nay clear dirty** (trước đó undo set dirty = true).
+- **Mutate-then-revert clears dirty** — toggle on→off không còn báo "có thay đổi".
+
+### Internal
+
+- New tests: `DirtyStateTests` (10 cases) + `EnvEditApplyFlowTests` (4 cases) → 100 tests pass.
+- New components: `DSSheetContainer`, `DSField`, `ColorSwatch`.
+- New tokens: `DSAnimation` curves.
+
 ## v2.1.0 — 2026-05-07
 
 ### Added
