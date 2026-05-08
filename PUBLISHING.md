@@ -62,7 +62,7 @@ make checksum
 
 ## Cập nhật username
 
-Tìm và thay thế `twannguyenba-hash` trong các file sau:
+Tìm và thay thế `twan-nguyen` trong các file sau:
 - `homebrew/Casks/hostsmanager.rb`
 - `.github/workflows/release.yml`
 - `.github/workflows/update-homebrew.yml`

@@ -2,10 +2,10 @@ cask "hostsmanager" do
   version "1.0.1"
   sha256 "1c151380e36f26d78668cb3ff4c2e378b8c8edd0424eb85295d06434acc44016"
 
-  url "https://github.com/twannguyenba-hash/HostsManager/releases/download/v#{version}/HostsManager-v#{version}.zip"
+  url "https://github.com/twan-nguyen/HostsManager/releases/download/v#{version}/HostsManager-v#{version}.zip"
   name "HostsManager"
   desc "Quản lý file /etc/hosts trên macOS"
-  homepage "https://github.com/twannguyenba-hash/HostsManager"
+  homepage "https://github.com/twan-nguyen/HostsManager"
 
   depends_on macos: ">= :ventura"
 

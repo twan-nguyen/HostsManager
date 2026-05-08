@@ -54,7 +54,7 @@
 ### Homebrew (khuyên dùng)
 
 ```bash
-brew tap twannguyenba-hash/hostsmanager
+brew tap twan-nguyen/hostsmanager
 brew install hostsmanager
 
 # Cập nhật lên phiên bản mới

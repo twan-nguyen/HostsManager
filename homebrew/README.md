@@ -3,7 +3,7 @@
 ## Cài đặt
 
 ```bash
-brew tap twannguyenba-hash/hostsmanager
+brew tap twan-nguyen/hostsmanager
 brew install hostsmanager
 ```
 
@@ -17,5 +17,5 @@ brew upgrade hostsmanager
 
 ```bash
 brew uninstall hostsmanager
-brew untap twannguyenba-hash/hostsmanager
+brew untap twan-nguyen/hostsmanager
 ```

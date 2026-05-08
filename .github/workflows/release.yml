@@ -68,7 +68,7 @@ jobs:
 
             ### Cài đặt
             ```bash
-            brew install twannguyenba-hash/hostsmanager/hostsmanager
+            brew install twan-nguyen/hostsmanager/hostsmanager
             ```
 
             ### Cập nhật
@@ -94,7 +94,7 @@ jobs:
           fi
 
           rm -rf /tmp/homebrew-tap
-          git clone https://x-access-token:${TAP_REPO_TOKEN}@github.com/twannguyenba-hash/homebrew-hostsmanager.git /tmp/homebrew-tap
+          git clone https://x-access-token:${TAP_REPO_TOKEN}@github.com/twan-nguyen/homebrew-hostsmanager.git /tmp/homebrew-tap
           cd /tmp/homebrew-tap
 
           sed -i '' "s/version \".*\"/version \"${VERSION_CLEAN}\"/" Casks/hostsmanager.rb
