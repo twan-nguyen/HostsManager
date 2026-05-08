@@ -62,6 +62,7 @@ struct HostRowView: View {
         }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
+        .onTapGesture(count: 2) { onEdit() }
         .contextMenu { contextMenu }
     }
 

@@ -35,6 +35,9 @@ struct EnvRowView: View {
         }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
+        .onTapGesture(count: 2) {
+            if !entry.isBlankOrComment { onEdit() }
+        }
         .contextMenu { contextMenu }
     }
 
