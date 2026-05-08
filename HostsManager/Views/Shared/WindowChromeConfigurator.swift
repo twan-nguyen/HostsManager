@@ -20,7 +20,10 @@ struct WindowChromeConfigurator: NSViewRepresentable {
         }
         if !window.titlebarAppearsTransparent { window.titlebarAppearsTransparent = true }
         if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
-        if !window.isMovableByWindowBackground { window.isMovableByWindowBackground = true }
+        // Drag only from the titlebar (where traffic lights live) — not the body.
+        // With fullSizeContentView the titlebar is still hit-tested for window
+        // dragging even though our custom TitleBarView paints over it.
+        if window.isMovableByWindowBackground { window.isMovableByWindowBackground = false }
         if window.toolbar != nil { window.toolbar = nil }
         ensureTitlebarVisible(window)
     }
