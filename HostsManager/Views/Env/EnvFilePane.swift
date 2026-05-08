@@ -407,52 +407,117 @@ struct EnvFilePane: View {
                     actionLabel: searchText.isEmpty ? "Thêm key mới" : nil,
                     action: searchText.isEmpty ? { showAddSheet = true } : nil
                 )
+                .transition(.opacity)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        envListHeader
-                        ForEach(Array(rows.enumerated()), id: \.element.id) { index, entry in
-                            EnvRowView(
-                                entry: entry,
-                                onToggle: { _ in
-                                    envManager.toggleEntry(
-                                        repoId: repo.id,
-                                        fileId: file.id,
-                                        entryId: entry.id
-                                    )
-                                },
-                                onEdit: { editingEntry = entry },
-                                onDelete: {
-                                    deleteTarget = entry
-                                    showDeleteConfirm = true
-                                },
-                                isAlternate: index.isMultiple(of: 2)
-                            )
-                        }
-                    }
-                }
-                .background(Color.dsBackground)
+                envEntriesTableView(file: file, rows: rows)
+                    // Force Table rebuild on file switch → crossfade transition.
+                    .id(selectedFilePath)
+                    .transition(.opacity)
             }
         }
+        .animation(.dsSmooth, value: selectedFilePath)
     }
 
-    /// Column header above env list. Widths from `EnvRowLayout`.
-    private var envListHeader: some View {
-        HStack(spacing: DSSpacing.p2) {
-            Spacer().frame(width: EnvRowLayout.toggle)
-            Text("KEY")
-                .frame(width: EnvRowLayout.key, alignment: .leading)
-            Text("VALUE")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Spacer().frame(width: EnvRowLayout.menu)
+    /// Native macOS Table replacing previous LazyVStack — NSTableView underneath
+    /// gives real row recycling so large env files (500+ keys) scroll smoothly.
+    /// Blank/comment lines collapse to a single italic value column.
+    @ViewBuilder
+    private func envEntriesTableView(file: EnvFile, rows: [EnvEntry]) -> some View {
+        Table(rows) {
+            TableColumn("") { entry in
+                if !entry.isBlankOrComment {
+                    DSToggle(isOn: Binding(
+                        get: { entry.isEnabled },
+                        set: { _ in
+                            envManager.toggleEntry(
+                                repoId: repo.id,
+                                fileId: file.id,
+                                entryId: entry.id
+                            )
+                        }
+                    ))
+                }
+            }
+            .width(EnvRowLayout.toggle)
+
+            TableColumn("KEY") { entry in
+                if !entry.isBlankOrComment {
+                    Text(entry.key)
+                        .font(.dsMono)
+                        .foregroundStyle(Color(hex: "#85B7EB"))
+                        .strikethrough(!entry.isEnabled, color: Color(hex: "#85B7EB"))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(entry.key)
+                        .opacity(entry.isEnabled ? 1 : 0.5)
+                        .animation(.dsSmooth, value: entry.isEnabled)
+                }
+            }
+            .width(EnvRowLayout.key)
+
+            TableColumn("VALUE") { entry in
+                if entry.isBlankOrComment {
+                    Text(entry.rawLine ?? "")
+                        .font(.dsMono)
+                        .italic()
+                        .foregroundStyle(Color.dsTextTertiary)
+                        .lineLimit(1)
+                } else {
+                    Text(entry.value)
+                        .font(.dsMono)
+                        .foregroundStyle(Color.dsValueAmber)
+                        .strikethrough(!entry.isEnabled, color: Color.dsValueAmber)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(entry.comment.isEmpty ? entry.value : "\(entry.value)\n\n# \(entry.comment)")
+                        .opacity(entry.isEnabled ? 1 : 0.5)
+                        .animation(.dsSmooth, value: entry.isEnabled)
+                }
+            }
+
+            TableColumn("") { entry in
+                if !entry.isBlankOrComment {
+                    Menu {
+                        envRowContextMenu(for: entry)
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.dsTextTertiary)
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                }
+            }
+            .width(EnvRowLayout.menu)
         }
-        .font(.dsLabel)
-        .foregroundStyle(Color.dsTextTertiary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, DSSpacing.p2)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Color.dsBorderSecondary).frame(height: 0.5)
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .contextMenu(forSelectionType: EnvEntry.ID.self) { ids in
+            if let id = ids.first,
+               let entry = rows.first(where: { $0.id == id }),
+               !entry.isBlankOrComment {
+                envRowContextMenu(for: entry)
+            }
+        } primaryAction: { ids in
+            if let id = ids.first,
+               let entry = rows.first(where: { $0.id == id }),
+               !entry.isBlankOrComment {
+                editingEntry = entry
+            }
         }
+        .background(Color.dsBackground)
+    }
+
+    @ViewBuilder
+    private func envRowContextMenu(for entry: EnvEntry) -> some View {
+        Button { editingEntry = entry } label: { Label("Sửa", systemImage: "pencil") }
+        Divider()
+        Button(role: .destructive) {
+            deleteTarget = entry
+            showDeleteConfirm = true
+        } label: { Label("Xoá", systemImage: "trash") }
     }
 
     // MARK: - Profile actions
