@@ -6,7 +6,14 @@ struct EnvFilePane: View {
 
     @State private var discoverResult: EnvDiscoverResult = .ok([])
     private var availableFiles: [String] { discoverResult.paths }
-    @State private var selectedFilePath: String?
+    /// Mirrors `envManager.selectedFilePath` — the StatusBar Apply button reads
+    /// the manager's copy when it fires, so writes to the local @State alone
+    /// would silently no-op the apply path. Using the manager as source of truth
+    /// keeps the two in sync.
+    private var selectedFilePath: String? {
+        get { envManager.selectedFilePath }
+        nonmutating set { envManager.selectedFilePath = newValue }
+    }
     @State private var searchText: String = ""
     @State private var isSearchFocused: Bool = false
     @State private var editingEntry: EnvEntry?
