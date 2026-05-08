@@ -21,12 +21,14 @@ struct DSToggle: View {
                     .frame(width: 10, height: 10)
                     .padding(.horizontal, 1.5)
                     .shadow(color: .black.opacity(0.25), radius: 0.5, y: 0.5)
+                    .scaleEffect(isOn ? 1.0 : 0.92)
             }
         }
         .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.4 : 1)
         .animation(reduceMotion ? nil : .dsSnappy, value: isOn)
+        .animation(.dsSmooth, value: disabled)
         .accessibilityLabel("Toggle entry")
         .accessibilityValue(isOn ? "On" : "Off")
     }
