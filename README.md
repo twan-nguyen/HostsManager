@@ -45,7 +45,7 @@
 
 ## Yêu cầu
 
-- macOS 14.0 (Sonoma) trở lên — bumped từ v1 vì cần `@Observable`, `NavigationSplitView` modern
+- macOS 15.0 (Sequoia) trở lên — bump để dùng `onScrollPhaseChange` (perf scroll), `@Observable`, `NavigationSplitView` modern
 - Xcode 15+ (để build)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
