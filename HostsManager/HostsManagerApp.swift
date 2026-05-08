@@ -65,18 +65,11 @@ struct HostsManagerApp: App {
         .menuBarExtraStyle(.menu)
     }
 
-    /// Static app icon — does not change with active profile. The active profile
-    /// is still surfaced inside the dropdown ("PROFILE HIỆN TẠI") section.
+    /// Monochrome menu bar icon styled after the AppIcon's cascading cards.
+    /// Stays static across profile switches; profile state lives in the dropdown.
     @ViewBuilder
     private var menuBarLabel: some View {
-        if let appIcon = NSImage(named: NSImage.applicationIconName) {
-            Image(nsImage: appIcon)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 18, height: 18)
-        } else {
-            Image(systemName: "globe")
-        }
+        MenuBarIcon()
     }
 
     /// One menu item per profile (⌘1..⌘9). Hidden in production menu via empty title? — kept visible
