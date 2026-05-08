@@ -271,14 +271,17 @@ struct SidebarView: View {
                 .font(.dsHeading)
             TextField("Tên profile", text: $newProfileName)
                 .textFieldStyle(.roundedBorder)
-            HStack {
+            VStack(alignment: .leading, spacing: DSSpacing.p2) {
                 Text("Màu").font(.dsCaption)
-                Picker("", selection: $newProfileColor) {
+                HStack(spacing: DSSpacing.p2) {
                     ForEach(ProfileColor.allCases) { color in
-                        Text(color.displayName).tag(color)
+                        ColorSwatch(
+                            color: color,
+                            isSelected: newProfileColor == color,
+                            action: { newProfileColor = color }
+                        )
                     }
                 }
-                .labelsHidden()
             }
             HStack {
                 Spacer()
