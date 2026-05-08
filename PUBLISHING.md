@@ -59,11 +59,3 @@ make checksum
 # Upload ZIP lên GitHub Release thủ công
 # Push thay đổi formula lên tap repo
 ```
-
-## Cập nhật username
-
-Tìm và thay thế `twan-nguyen` trong các file sau:
-- `homebrew/Casks/hostsmanager.rb`
-- `.github/workflows/release.yml`
-- `.github/workflows/update-homebrew.yml`
-- `README.md`
