@@ -31,7 +31,8 @@ struct WindowChromeConfiguratorTests {
         WindowChromeConfigurator.configure(w)
         #expect(w.titlebarAppearsTransparent == true)
         #expect(w.titleVisibility == .hidden)
-        #expect(w.isMovableByWindowBackground == true)
+        // Window is only draggable from the titlebar — clicking the body shouldn't move it.
+        #expect(w.isMovableByWindowBackground == false)
         #expect(w.toolbar == nil)
     }
 

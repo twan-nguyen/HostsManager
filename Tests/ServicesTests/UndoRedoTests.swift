@@ -14,7 +14,7 @@ struct UndoRedoTests {
         for i in 0..<count {
             m.entries.append(HostEntry(ip: "10.0.0.\(i)", hostname: "host\(i)"))
         }
-        m.hasUnsavedChanges = false
+        m.captureClean()
     }
 
     @Test("Initial state has empty undo/redo stacks")

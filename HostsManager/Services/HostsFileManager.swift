@@ -68,8 +68,24 @@ final class HostsFileManager {
     var entries: [HostEntry] = []
     var tags: [HostTag] = []
     var commentLines: [(index: Int, text: String)] = []
-    var hasUnsavedChanges = false
     var isApplying = false
+
+    /// Serialized snapshot of the last clean state (load + post-apply). Compared
+    /// against `generateHostsContent()` to derive `hasUnsavedChanges` — so undo
+    /// back to the load state, or mutate-then-revert, both clear dirty automatically.
+    private var pristineSerialized: String = ""
+
+    /// Raw-text editor doesn't sync `entries` until apply. While the user types in
+    /// raw mode we can't compare-by-value, so the view sets this flag to force
+    /// dirty until the next apply/load.
+    private var rawTextDirtyOverride = false
+
+    /// `true` when the in-memory state differs from the last-saved disk content.
+    /// Computed from `pristineSerialized` + `rawTextDirtyOverride` — never set
+    /// directly. Use `captureClean()` to mark the current state as the new pristine.
+    var hasUnsavedChanges: Bool {
+        rawTextDirtyOverride || generateHostsContent() != pristineSerialized
+    }
     var isSearchFocused = false
     /// Pending query pushed from the ⌘K palette. HostsView observes, applies to its
     /// own search field, then clears. Decouples palette from view-local @State.
@@ -125,7 +141,6 @@ final class HostsFileManager {
         guard let snapshot = undoStack.popLast() else { return }
         redoStack.append(entries)
         entries = snapshot
-        hasUnsavedChanges = true
     }
 
     /// Re-apply a previously undone change. No-op if redo stack is empty.
@@ -133,7 +148,6 @@ final class HostsFileManager {
         guard let snapshot = redoStack.popLast() else { return }
         undoStack.append(entries)
         entries = snapshot
-        hasUnsavedChanges = true
     }
 
     private func clearUndoStacks() {
@@ -147,7 +161,24 @@ final class HostsFileManager {
         if autoLoad {
             loadHostsFile()
             startWatchingHostsFile()
+        } else {
+            captureClean()
         }
+    }
+
+    /// Mark the current in-memory state as the new pristine baseline. Called after
+    /// a successful load/apply, and exposed so tests can seed entries directly and
+    /// then declare "this is now clean".
+    func captureClean() {
+        pristineSerialized = generateHostsContent()
+        rawTextDirtyOverride = false
+    }
+
+    /// Force dirty even when entries match pristine. Used by the raw-text editor
+    /// where pending changes live in view-local @State and don't reach `entries`
+    /// until apply.
+    func markRawTextDirty() {
+        rawTextDirtyOverride = true
     }
 
     private func startWatchingHostsFile() {
@@ -168,7 +199,7 @@ final class HostsFileManager {
             let content = try String(contentsOfFile: hostsPath, encoding: .utf8)
             originalContent = content
             parseHostsContent(content)
-            hasUnsavedChanges = false
+            captureClean()
             externalChangeDetected = false
             clearUndoStacks()
         } catch {
@@ -351,7 +382,6 @@ final class HostsFileManager {
             tags[tagIdx].name = trimmed
         }
         profileStore.save(profiles)
-        hasUnsavedChanges = true
         return true
     }
 
@@ -423,7 +453,6 @@ final class HostsFileManager {
         pushUndo()
         let entry = HostEntry(ip: ip, hostname: hostname, comment: comment, isEnabled: true, tag: tag)
         entries.append(entry)
-        hasUnsavedChanges = true
         showToast("Đã thêm \(hostname)", type: .success)
     }
 
@@ -434,7 +463,6 @@ final class HostsFileManager {
             entries[index].hostname = hostname
             entries[index].comment = comment
             entries[index].tag = tag
-            hasUnsavedChanges = true
         }
     }
 
@@ -448,7 +476,6 @@ final class HostsFileManager {
             return
         }
         tags.append(HostTag(name: trimmed))
-        hasUnsavedChanges = true
         showToast("Đã tạo tag \"\(trimmed)\"", type: .success)
     }
 
@@ -469,7 +496,6 @@ final class HostsFileManager {
             updated[i].tag = trimmed
         }
         entries = updated
-        hasUnsavedChanges = true
         showToast("Đã đổi tên tag thành \"\(trimmed)\"", type: .success)
     }
 
@@ -481,7 +507,6 @@ final class HostsFileManager {
             updated[i].tag = nil
         }
         entries = updated
-        hasUnsavedChanges = true
         showToast("Đã xóa tag \"\(name)\"", type: .success)
     }
 
@@ -496,7 +521,6 @@ final class HostsFileManager {
             updated[i].isEnabled = newState
         }
         entries = updated
-        hasUnsavedChanges = true
     }
 
     enum TagState {
@@ -521,7 +545,6 @@ final class HostsFileManager {
         if let index = entries.firstIndex(where: { $0.id == entryId }) {
             pushUndo()
             entries[index].tag = tag
-            hasUnsavedChanges = true
         }
     }
 
@@ -532,7 +555,6 @@ final class HostsFileManager {
     func deleteEntry(id: UUID) {
         pushUndo()
         entries.removeAll { $0.id == id }
-        hasUnsavedChanges = true
     }
 
     @discardableResult
@@ -549,7 +571,6 @@ final class HostsFileManager {
             tag: source.tag
         )
         entries.insert(copy, at: idx + 1)
-        hasUnsavedChanges = true
         return copy
     }
 
@@ -557,7 +578,6 @@ final class HostsFileManager {
         if let index = entries.firstIndex(where: { $0.id == id }) {
             pushUndo()
             entries[index].isEnabled.toggle()
-            hasUnsavedChanges = true
         }
     }
 
@@ -645,7 +665,8 @@ final class HostsFileManager {
 
             if success {
                 self.originalContent = content
-                self.hasUnsavedChanges = false
+                self.pristineSerialized = content
+                self.rawTextDirtyOverride = false
                 self.externalChangeDetected = false
                 self.redoStack.removeAll()  // post-apply redo would re-create stale state
                 self.showToast("Đã áp dụng thành công!", type: .success)
@@ -663,7 +684,6 @@ final class HostsFileManager {
     func replaceContentFromRawText(_ text: String) {
         pushUndo()
         parseHostsContent(text)
-        hasUnsavedChanges = true
     }
 
     func applyRawText(_ text: String) {
@@ -691,7 +711,7 @@ final class HostsFileManager {
             if success {
                 self.originalContent = content
                 self.parseHostsContent(content)
-                self.hasUnsavedChanges = false
+                self.captureClean()
                 self.externalChangeDetected = false
                 self.showToast("Đã áp dụng thành công!", type: .success)
             } else if let error = error {
@@ -750,7 +770,6 @@ final class HostsFileManager {
         }
 
         if added > 0 {
-            hasUnsavedChanges = true
             showToast("Đã import \(added) entry mới", type: .success)
         } else {
             showToast("Không có entry mới để import", type: .info)

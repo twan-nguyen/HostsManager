@@ -244,7 +244,7 @@ struct HostsView: View {
                 .onChange(of: rawText) { _ in
                     guard !hostsManager.hasUnsavedChanges else { return }
                     DispatchQueue.main.async {
-                        hostsManager.hasUnsavedChanges = true
+                        hostsManager.markRawTextDirty()
                     }
                 }
         }
