@@ -67,9 +67,11 @@ struct HostsManagerApp: App {
 
     /// Monochrome menu bar icon styled after the AppIcon's cascading cards.
     /// Stays static across profile switches; profile state lives in the dropdown.
+    /// Uses an SF Symbol because the menu bar rasterizes its label and arbitrary
+    /// SwiftUI shapes/masks render as a blank disc.
     @ViewBuilder
     private var menuBarLabel: some View {
-        MenuBarIcon()
+        Image(systemName: "list.bullet")
     }
 
     /// One menu item per profile (⌘1..⌘9). Hidden in production menu via empty title? — kept visible
