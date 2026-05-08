@@ -128,7 +128,7 @@ struct CommandPaletteView: View {
             .frame(maxHeight: 380)
             .onChange(of: viewModel.selectedIndex) { _, _ in
                 if let cmd = viewModel.selectedCommand {
-                    withAnimation(.easeOut(duration: 0.12)) {
+                    withAnimation(.dsSnappy) {
                         proxy.scrollTo(cmd.id, anchor: .center)
                     }
                 }

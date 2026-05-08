@@ -44,7 +44,7 @@ struct HostsView: View {
                                 .padding(.bottom, 16)
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
-                        .animation(.spring(response: 0.4), value: hostsManager.toast)
+                        .animation(.dsBouncy, value: hostsManager.toast)
                     }
                 }
             }
@@ -244,7 +244,7 @@ struct HostsView: View {
                 .onChange(of: rawText) { _ in
                     guard !hostsManager.hasUnsavedChanges else { return }
                     DispatchQueue.main.async {
-                        hostsManager.hasUnsavedChanges = true
+                        hostsManager.markRawTextDirty()
                     }
                 }
         }
@@ -289,8 +289,8 @@ struct HostsView: View {
                 entriesTable(filtered)
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: currentTag)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: currentFilter)
+        .animation(reduceMotion ? nil : .dsSmooth, value: currentTag)
+        .animation(reduceMotion ? nil : .dsSnappy, value: currentFilter)
     }
 
     private var emptyView: some View {

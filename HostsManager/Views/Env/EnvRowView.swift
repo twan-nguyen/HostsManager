@@ -29,12 +29,17 @@ struct EnvRowView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
+        .animation(.dsSmooth, value: entry.isEnabled)
         .background(rowBackground)
         .overlay(alignment: .bottom) {
             Rectangle().fill(Color.dsBorderTertiary).frame(height: 0.5)
         }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
+        .animation(.dsSnappy, value: isHovering)
+        .onTapGesture(count: 2) {
+            if !entry.isBlankOrComment { onEdit() }
+        }
         .contextMenu { contextMenu }
     }
 

@@ -19,7 +19,7 @@ struct EnvView: View {
                             .padding(.bottom, 16)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    .animation(.spring(response: 0.4), value: envManager.toast)
+                    .animation(.dsBouncy, value: envManager.toast)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

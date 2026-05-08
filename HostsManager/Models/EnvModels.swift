@@ -32,18 +32,33 @@ struct EnvFile: Identifiable, Equatable {
     let id: UUID
     let relativePath: String
     var entries: [EnvEntry]
-    var hasUnsavedChanges: Bool
+
+    /// Snapshot of `entries` at last load/apply. `hasUnsavedChanges` derives from
+    /// comparing current entries against this — so revert-to-original auto-clears.
+    var pristineEntries: [EnvEntry]
+
+    /// Raw-text editor sets this while the user types in raw mode (entries
+    /// haven't been re-parsed yet). Cleared on apply.
+    var rawTextDirty: Bool
+
+    /// Computed: differs from disk = current entries diverge from the pristine
+    /// snapshot, OR raw-text editor is mid-edit.
+    var hasUnsavedChanges: Bool {
+        rawTextDirty || entries != pristineEntries
+    }
 
     init(
         id: UUID = UUID(),
         relativePath: String,
         entries: [EnvEntry] = [],
-        hasUnsavedChanges: Bool = false
+        pristineEntries: [EnvEntry]? = nil,
+        rawTextDirty: Bool = false
     ) {
         self.id = id
         self.relativePath = relativePath
         self.entries = entries
-        self.hasUnsavedChanges = hasUnsavedChanges
+        self.pristineEntries = pristineEntries ?? entries
+        self.rawTextDirty = rawTextDirty
     }
 }
 

@@ -113,6 +113,7 @@ struct BreadcrumbView: View {
         HStack(spacing: DSSpacing.p3) {
             if activeTab == .hosts && externalChangeDetected {
                 externalChangeBadge
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
 
             if activeTab == .hosts {
@@ -120,10 +121,13 @@ struct BreadcrumbView: View {
                     Image(systemName: sudoOK ? "checkmark.shield.fill" : "shield")
                         .font(.system(size: 10))
                         .foregroundStyle(sudoOK ? Color.dsResolvedGreen : Color.dsTextTertiary)
+                        .contentTransition(.symbolEffect(.replace))
                     Text(sudoOK ? "sudo OK" : "chưa có quyền")
                         .font(.system(size: 10.5))
                         .foregroundStyle(Color.dsTextSecondary)
+                        .contentTransition(.numericText())
                 }
+                .animation(.dsSmooth, value: sudoOK)
             }
 
             if pendingChanges > 0 {
@@ -134,9 +138,16 @@ struct BreadcrumbView: View {
                     Text("\(pendingChanges) thay đổi")
                         .font(.system(size: 10.5))
                         .foregroundStyle(Color.dsTextSecondary)
+                        .contentTransition(.numericText())
                 }
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .trailing)),
+                    removal: .opacity.combined(with: .scale(scale: 0.9))
+                ))
             }
         }
+        .animation(.dsSmooth, value: pendingChanges)
+        .animation(.dsBouncy, value: externalChangeDetected)
     }
 
     /// Amber warning chip + Reload button, shown when an external tool modified

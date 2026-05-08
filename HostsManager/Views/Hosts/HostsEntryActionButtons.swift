@@ -22,7 +22,7 @@ struct EntryActionButtons: View {
         .frame(maxWidth: .infinity, alignment: .center)
         .contentShape(Rectangle())
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.dsSnappy) {
                 isHovered = hovering
             }
         }

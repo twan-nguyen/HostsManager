@@ -44,34 +44,39 @@ struct EnvProfileSheet: View {
     // MARK: - Save mode
 
     private var saveModeBody: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Lưu state hiện tại thành profile")
-                .font(.title3.bold())
+        DSSheetContainer(
+            title: "Lưu state hiện tại thành profile",
+            subtitle: "App sẽ chụp lại nội dung các file .env trong repo hiện tại.",
+            bodyContent: {
+                VStack(alignment: .leading, spacing: DSSpacing.p3) {
+                    DSField(
+                        "Tên profile",
+                        text: $newProfileName,
+                        prompt: "dev, staging, prod...",
+                        autocorrect: false
+                    )
+                    .onSubmit { saveProfile() }
 
-            Text("App sẽ chụp lại nội dung các file .env trong repo hiện tại.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            TextField("Tên profile", text: $newProfileName, prompt: Text("dev, staging, prod..."))
-                .textFieldStyle(.roundedBorder)
-                .onSubmit { saveProfile() }
-
-            if !errorMessage.isEmpty {
-                Text(errorMessage).foregroundStyle(.red).font(.caption)
+                    if !errorMessage.isEmpty {
+                        Text(errorMessage)
+                            .foregroundStyle(Color.dsProfileRed)
+                            .font(.dsCaption)
+                    }
+                }
+            },
+            footer: {
+                HStack {
+                    Button("Hủy") { dismiss() }
+                        .keyboardShortcut(.escape)
+                    Spacer()
+                    Button("Lưu") { saveProfile() }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.return)
+                        .disabled(newProfileName.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
-
-            HStack {
-                Button("Hủy") { dismiss() }
-                    .keyboardShortcut(.escape)
-                Spacer()
-                Button("Lưu") { saveProfile() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.return)
-                    .disabled(newProfileName.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-        }
-        .padding(20)
-        .frame(width: 440)
+        )
+        .frame(width: 460)
     }
 
     private func saveProfile() {
@@ -90,35 +95,42 @@ struct EnvProfileSheet: View {
     // MARK: - Manage mode
 
     private var manageModeBody: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Quản lý profiles")
-                .font(.title3.bold())
-
-            if let repo = repo, !repo.profiles.isEmpty {
-                List {
-                    ForEach(repo.profiles) { profile in
-                        profileRow(profile)
+        DSSheetContainer(
+            title: "Quản lý profiles",
+            bodyContent: {
+                Group {
+                    if let repo = repo, !repo.profiles.isEmpty {
+                        VStack(spacing: 0) {
+                            ForEach(repo.profiles) { profile in
+                                profileRow(profile)
+                                if profile.id != repo.profiles.last?.id {
+                                    Rectangle()
+                                        .fill(Color.dsBorderTertiary)
+                                        .frame(height: 1)
+                                }
+                            }
+                        }
+                        .frame(minHeight: 220, alignment: .top)
+                    } else {
+                        VStack {
+                            Spacer()
+                            Text("Chưa có profile nào")
+                                .font(.dsBody)
+                                .foregroundStyle(Color.dsTextSecondary)
+                            Spacer()
+                        }
+                        .frame(minHeight: 220)
+                        .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(minHeight: 220)
-            } else {
-                VStack(spacing: 8) {
-                    Spacer()
-                    Text("Chưa có profile nào")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .frame(minHeight: 220)
-            }
-
-            HStack {
+            },
+            footer: {
                 Spacer()
                 Button("Đóng") { dismiss() }
                     .keyboardShortcut(.escape)
             }
-        }
-        .padding(20)
-        .frame(width: 520)
+        )
+        .frame(width: 540)
         .alert("Đổi tên profile", isPresented: Binding(
             get: { renamingId != nil },
             set: { if !$0 { renamingId = nil } }
@@ -133,10 +145,12 @@ struct EnvProfileSheet: View {
     private func profileRow(_ profile: EnvProfile) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(profile.name).font(.body.weight(.medium))
+                Text(profile.name)
+                    .font(.dsBody.weight(.medium))
+                    .foregroundStyle(Color.dsTextPrimary)
                 Text("\(profile.files.count) files · \(profile.capturedAt.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.dsCaption)
+                    .foregroundStyle(Color.dsTextSecondary)
             }
             Spacer()
             Button {
@@ -144,6 +158,7 @@ struct EnvProfileSheet: View {
                 renameBuffer = profile.name
             } label: {
                 Image(systemName: "pencil")
+                    .foregroundStyle(Color.dsTextSecondary)
             }
             .buttonStyle(.borderless)
             .help("Đổi tên")
@@ -151,12 +166,13 @@ struct EnvProfileSheet: View {
             Button(role: .destructive) {
                 envManager.deleteProfile(repoId: mode.repoId, profileId: profile.id)
             } label: {
-                Image(systemName: "trash").foregroundStyle(.red)
+                Image(systemName: "trash")
+                    .foregroundStyle(Color.dsProfileRed)
             }
             .buttonStyle(.borderless)
             .help("Xoá")
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
     }
 
     private func performRename() {

@@ -32,9 +32,12 @@ struct StatusBarView: View {
             }
 
             if pendingChanges > 0 {
-                Text("·")
-                    .foregroundStyle(Color.dsTextTertiary)
-                pendingHint
+                HStack(spacing: DSSpacing.p3) {
+                    Text("·")
+                        .foregroundStyle(Color.dsTextTertiary)
+                    pendingHint
+                }
+                .transition(.opacity.combined(with: .move(edge: .leading)))
             }
 
             Spacer()
@@ -52,6 +55,10 @@ struct StatusBarView: View {
                 .fill(Color.dsBorderTertiary)
                 .frame(height: 0.5)
         }
+        .animation(.dsSmooth, value: pendingChanges)
+        .animation(.dsSnappy, value: isApplying)
+        .animation(.dsSnappy, value: canUndo)
+        .animation(.dsSnappy, value: canRedo)
     }
 
     // MARK: - Subviews
@@ -119,14 +126,18 @@ struct StatusBarView: View {
     private var applyButton: some View {
         Button(action: onApply) {
             HStack(spacing: 4) {
-                if isApplying {
-                    ProgressView().controlSize(.mini)
-                } else {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .semibold))
+                Group {
+                    if isApplying {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
                 }
+                .transition(.opacity.combined(with: .scale))
                 Text(isApplying ? "Đang lưu" : "Áp dụng")
                     .font(.system(size: 10, weight: .medium))
+                    .contentTransition(.numericText())
                 Text("⌘S")
                     .font(.dsMonoTiny)
                     .opacity(0.85)
@@ -139,6 +150,7 @@ struct StatusBarView: View {
                 RoundedRectangle(cornerRadius: DSRadius.sm)
                     .strokeBorder(Color(hex: "#78b4ff").opacity(0.4), lineWidth: 0.5)
             )
+            .scaleEffect(pendingChanges == 0 ? 0.96 : 1)
         }
         .buttonStyle(.plain)
         .keyboardShortcut("s", modifiers: .command)

@@ -142,7 +142,7 @@ final class EnvFileManager {
             throw EnvError.fileReadFailed(error.localizedDescription)
         }
         let entries = EnvParser.parse(content)
-        return EnvFile(relativePath: relativePath, entries: entries, hasUnsavedChanges: false)
+        return EnvFile(relativePath: relativePath, entries: entries)
     }
 
     /// Async variant: chạy disk read + parse trên background để tránh block main actor khi lần đầu load.
@@ -163,7 +163,7 @@ final class EnvFileManager {
                 throw EnvError.fileReadFailed(error.localizedDescription)
             }
             let entries = EnvParser.parse(content)
-            return EnvFile(relativePath: relativePath, entries: entries, hasUnsavedChanges: false)
+            return EnvFile(relativePath: relativePath, entries: entries)
         }.value
     }
 
@@ -196,7 +196,8 @@ final class EnvFileManager {
 
         updateLoadedFile(repoId: repoId, fileId: file.id) { cached in
             cached.entries = file.entries
-            cached.hasUnsavedChanges = false
+            cached.pristineEntries = file.entries
+            cached.rawTextDirty = false
         }
 
         showToast("Đã áp dụng \(file.relativePath)", type: .success)
@@ -204,22 +205,22 @@ final class EnvFileManager {
 
     // MARK: - Raw text editing
 
-    /// Parse raw text and replace cached entries for a file. Marks file dirty.
+    /// Parse raw text and replace cached entries for a file. Dirty state derives
+    /// from comparison against pristineEntries — no manual flag toggle needed.
     /// Used when the user switches from raw-text mode back to form mode.
     func replaceEntriesFromRawText(repoId: UUID, fileId: UUID, rawText: String) {
         let newEntries = EnvParser.parse(rawText)
         updateLoadedFile(repoId: repoId, fileId: fileId) { file in
             file.entries = newEntries
-            file.hasUnsavedChanges = true
+            file.rawTextDirty = false
         }
     }
 
-    /// Mark a cached file as having unsaved changes without re-parsing its entries.
-    /// Called on every keystroke in raw-text mode so the dirty indicator stays accurate
-    /// without paying parse cost per character.
+    /// Mark a cached file as mid-edit in raw-text mode. Called per keystroke so
+    /// the dirty indicator reflects pending raw text without paying parse cost.
     func markFileDirty(repoId: UUID, fileId: UUID) {
         updateLoadedFile(repoId: repoId, fileId: fileId) { file in
-            file.hasUnsavedChanges = true
+            file.rawTextDirty = true
         }
     }
 
@@ -243,7 +244,8 @@ final class EnvFileManager {
         let reparsed = EnvParser.parse(content)
         updateLoadedFile(repoId: repoId, fileId: fileId) { cached in
             cached.entries = reparsed
-            cached.hasUnsavedChanges = false
+            cached.pristineEntries = reparsed
+            cached.rawTextDirty = false
         }
 
         showToast("Đã áp dụng \(relativePath)", type: .success)
@@ -312,7 +314,6 @@ final class EnvFileManager {
         updateLoadedFile(repoId: repoId, fileId: fileId) { file in
             let entry = EnvEntry(key: key, value: value, comment: comment, isEnabled: true)
             file.entries.append(entry)
-            file.hasUnsavedChanges = true
         }
     }
 
@@ -329,7 +330,6 @@ final class EnvFileManager {
             file.entries[idx].key = key
             file.entries[idx].value = value
             file.entries[idx].comment = comment
-            file.hasUnsavedChanges = true
         }
     }
 
@@ -338,7 +338,6 @@ final class EnvFileManager {
             let before = file.entries.count
             file.entries.removeAll { $0.id == entryId }
             if file.entries.count != before {
-                file.hasUnsavedChanges = true
             }
         }
     }
@@ -358,7 +357,6 @@ final class EnvFileManager {
                 rawLine: source.isBlankOrComment ? source.rawLine : nil
             )
             file.entries.insert(copy, at: idx + 1)
-            file.hasUnsavedChanges = true
             inserted = copy
         }
         return inserted
@@ -368,7 +366,6 @@ final class EnvFileManager {
         updateLoadedFile(repoId: repoId, fileId: fileId) { file in
             guard let idx = file.entries.firstIndex(where: { $0.id == entryId }) else { return }
             file.entries[idx].isEnabled.toggle()
-            file.hasUnsavedChanges = true
         }
     }
 

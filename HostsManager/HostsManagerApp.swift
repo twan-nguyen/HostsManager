@@ -11,12 +11,6 @@ struct HostsManagerApp: App {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
     }
 
-    /// Active profile for the menu bar status item title (color dot + name).
-    private var activeProfile: Profile? {
-        guard let id = hostsManager.activeProfileID else { return nil }
-        return hostsManager.profiles.first { $0.id == id }
-    }
-
     var body: some Scene {
         WindowGroup {
             MainWindowView()
@@ -71,21 +65,13 @@ struct HostsManagerApp: App {
         .menuBarExtraStyle(.menu)
     }
 
-    /// Status bar label — colored dot + active profile name when set, otherwise a
-    /// generic globe icon. Re-renders when activeProfileID changes via SwiftUI.
+    /// Monochrome menu bar icon styled after the AppIcon's cascading cards.
+    /// Stays static across profile switches; profile state lives in the dropdown.
+    /// Uses an SF Symbol because the menu bar rasterizes its label and arbitrary
+    /// SwiftUI shapes/masks render as a blank disc.
     @ViewBuilder
     private var menuBarLabel: some View {
-        if let profile = activeProfile {
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(Color.ds(profile.color))
-                    .frame(width: 8, height: 8)
-                Text(profile.name)
-                    .font(.system(size: 12))
-            }
-        } else {
-            Image(systemName: "globe")
-        }
+        Image(systemName: "rectangle.stack.fill")
     }
 
     /// One menu item per profile (⌘1..⌘9). Hidden in production menu via empty title? — kept visible

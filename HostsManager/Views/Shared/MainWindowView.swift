@@ -62,7 +62,7 @@ struct MainWindowView: View {
                 .zIndex(100)
             }
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: showCommandPalette)
+        .animation(reduceMotion ? nil : .dsSnappy, value: showCommandPalette)
     }
 
     /// Invisible button hosting the ⌘K shortcut. Placed in `.background` so
@@ -90,7 +90,7 @@ struct MainWindowView: View {
             case .env:   EnvView().transition(.opacity)
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectedTab)
+        .animation(reduceMotion ? nil : .dsSmooth, value: selectedTab)
     }
 
     // MARK: - Derived state
