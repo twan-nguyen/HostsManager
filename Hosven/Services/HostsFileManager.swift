@@ -184,10 +184,17 @@ final class HostsFileManager {
     private func startWatchingHostsFile() {
         fileWatcher.onChange = { [weak self] event in
             guard let self else { return }
-            // The watcher already runs callbacks on main via DispatchQueue.main.async,
-            // so MainActor isolation is honored here. Set the flag — UI reacts.
+            // Suspend/resume on DispatchSourceFileSystemObject doesn't drop pending events
+            // (they accumulate and fire on resume), so we also compare disk content against
+            // what we last wrote — if it matches, this is our own write, not an external one.
             switch event {
-            case .modified, .deleted:
+            case .modified:
+                if let onDisk = try? String(contentsOfFile: self.hostsPath, encoding: .utf8),
+                   onDisk == self.originalContent {
+                    return
+                }
+                self.externalChangeDetected = true
+            case .deleted:
                 self.externalChangeDetected = true
             }
         }
