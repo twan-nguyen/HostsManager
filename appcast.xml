@@ -6,9 +6,9 @@
             <title>1.0.1</title>
             <pubDate>Thu, 14 May 2026 06:56:16 +0000</pubDate>
             <sparkle:version>1</sparkle:version>
-            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+            <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/twan-nguyen/hosven/releases/download/v1.0.1/Hosven-v1.0.1.zip" length="4994197" type="application/octet-stream"/>
+            <enclosure url="https://github.com/twan-nguyen/hosven/releases/download/v1.0.2/Hosven-v1.0.2.zip" length="4994198" type="application/octet-stream"/>
         </item>
     </channel>
 </rss>
