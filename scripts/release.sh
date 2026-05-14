@@ -11,15 +11,25 @@ VERSION=$1
 
 echo "=== Releasing Hosven v${VERSION} ==="
 
-# Update version in project.yml
+# Update MARKETING_VERSION (user-facing) in project.yml
 sed -i '' "s/MARKETING_VERSION: .*/MARKETING_VERSION: \"${VERSION}\"/" project.yml
+
+# Update CURRENT_PROJECT_VERSION (CFBundleVersion) — must change per release so
+# Sparkle's generate_appcast treats each release as a new entry (it keys on
+# CFBundleVersion). Without this bump, appcast.xml fails to embed edSignature.
+sed -i '' "s/CURRENT_PROJECT_VERSION: .*/CURRENT_PROJECT_VERSION: \"${VERSION}\"/" project.yml
 
 # Update version in Makefile
 sed -i '' "s/^VERSION = .*/VERSION = ${VERSION}/" Makefile
 
 # Verify versions were updated
 if ! grep -q "MARKETING_VERSION: \"${VERSION}\"" project.yml; then
-    echo "ERROR: Failed to update version in project.yml"
+    echo "ERROR: Failed to update MARKETING_VERSION in project.yml"
+    exit 1
+fi
+
+if ! grep -q "CURRENT_PROJECT_VERSION: \"${VERSION}\"" project.yml; then
+    echo "ERROR: Failed to update CURRENT_PROJECT_VERSION in project.yml"
     exit 1
 fi
 
@@ -28,7 +38,7 @@ if ! grep -q "^VERSION = ${VERSION}" Makefile; then
     exit 1
 fi
 
-echo "✓ Updated project.yml and Makefile to v${VERSION}"
+echo "✓ Updated project.yml (MARKETING + CURRENT_PROJECT) and Makefile to v${VERSION}"
 
 # Commit only version files
 git add project.yml Makefile

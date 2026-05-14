@@ -92,9 +92,9 @@ jobs:
 
           mkdir -p release-staging
           cp build/Build/Products/Release/Hosven-${{ github.ref_name }}.zip release-staging/
-          # Pull existing appcast so generate_appcast preserves historical entries
-          curl -fsSL https://twan-nguyen.github.io/hosven/appcast.xml \
-            -o release-staging/appcast.xml || true
+          # Start fresh each release. Old appcast on gh-pages may contain stale
+          # unsigned entries (from prior broken runs) that generate_appcast
+          # would "update" rather than re-sign — leaving signatures empty.
 
           # Use stdin per Sparkle docs (recommended over key file for CI).
           # Strip any whitespace GitHub Actions may inject around the secret.
