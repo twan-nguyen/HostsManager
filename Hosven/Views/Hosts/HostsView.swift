@@ -132,6 +132,23 @@ struct HostsView: View {
                         Label("Export vào clipboard", systemImage: "doc.on.clipboard")
                     }
                 }
+                Section("Sắp xếp") {
+                    Button {
+                        hostsManager.sortEntries(by: .hostname)
+                    } label: {
+                        Label("Theo hostname (A→Z)", systemImage: "textformat.abc")
+                    }
+                    Button {
+                        hostsManager.sortEntries(by: .ip)
+                    } label: {
+                        Label("Theo IP", systemImage: "number")
+                    }
+                    Button {
+                        hostsManager.sortEntries(by: .tagThenHostname)
+                    } label: {
+                        Label("Theo tag rồi hostname", systemImage: "tag")
+                    }
+                }
                 Section("File") {
                     Button {
                         hostsManager.createBackup()

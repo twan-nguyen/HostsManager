@@ -473,6 +473,57 @@ final class HostsFileManager {
         }
     }
 
+    // MARK: - Sorting
+
+    enum SortKey {
+        case hostname
+        case ip
+        case tagThenHostname
+    }
+
+    /// Re-order `entries` in place. Pushes undo so the user can revert.
+    /// Tag-aware sorts group by tag (preserving the order in `tags`, untagged last),
+    /// then sort hostnames within each group.
+    func sortEntries(by key: SortKey) {
+        pushUndo()
+        switch key {
+        case .hostname:
+            entries.sort { Self.compareHostname($0.hostname, $1.hostname) }
+        case .ip:
+            entries.sort { lhs, rhs in
+                let lk = Self.ipSortKey(lhs.ip)
+                let rk = Self.ipSortKey(rhs.ip)
+                if lk != rk { return lk < rk }
+                return Self.compareHostname(lhs.hostname, rhs.hostname)
+            }
+        case .tagThenHostname:
+            let tagOrder = Dictionary(uniqueKeysWithValues: tags.enumerated().map { ($1.name, $0) })
+            entries.sort { lhs, rhs in
+                let lp = lhs.tag.flatMap { tagOrder[$0] } ?? Int.max
+                let rp = rhs.tag.flatMap { tagOrder[$0] } ?? Int.max
+                if lp != rp { return lp < rp }
+                return Self.compareHostname(lhs.hostname, rhs.hostname)
+            }
+        }
+        showToast("Đã sắp xếp entries", type: .success)
+    }
+
+    private static func compareHostname(_ a: String, _ b: String) -> Bool {
+        a.localizedCaseInsensitiveCompare(b) == .orderedAscending
+    }
+
+    /// Build a comparable sort key for an IP. IPv4 → tuple of 4 octets padded into
+    /// a single fixed-width string; IPv6 / invalid → fall back to lexicographic.
+    /// Returns a string so we get one comparable type for both families.
+    private static func ipSortKey(_ ip: String) -> String {
+        let parts = ip.split(separator: ".")
+        if parts.count == 4, let octets = parts.map({ UInt16($0) }) as [UInt16?]?,
+           octets.allSatisfy({ $0 != nil && $0! <= 255 }) {
+            return "4:" + octets.map { String(format: "%03d", $0!) }.joined(separator: ".")
+        }
+        return "6:" + ip.lowercased()
+    }
+
     // MARK: - Tag Management
 
     func createTag(name: String) {
