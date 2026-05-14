@@ -9,6 +9,8 @@ cask "hosven" do
 
   depends_on macos: ">= :ventura"
 
+  auto_updates true
+
   app "Hosven.app"
 
   postflight do

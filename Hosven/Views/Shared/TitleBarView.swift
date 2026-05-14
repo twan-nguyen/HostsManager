@@ -7,11 +7,8 @@ struct TitleBarView: View {
     let hostsCount: Int
     let envCount: Int
     var onSearch: () -> Void = {}
-    var onSettings: () -> Void = {}
 
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
-    }
+    @State private var showAppInfo: Bool = false
 
     var body: some View {
         // Pin content to the top of a 38pt bar with 4pt top inset so the row's
@@ -40,19 +37,11 @@ struct TitleBarView: View {
 
     // MARK: - Subviews
 
+    /// Empty spacer that reserves room for the macOS traffic-light buttons
+    /// (~60pt). App name + icon intentionally hidden — identity surfaces via
+    /// the gear button's AppInfoPopover instead.
     private var leftZone: some View {
-        HStack(spacing: DSSpacing.p2) {
-            Image(systemName: "server.rack")
-                .font(.system(size: 13))
-                .foregroundStyle(Color.dsTextSecondary)
-            Text("Hosven")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.dsTextPrimary)
-            // Version visible only on hover via tooltip — keeps title bar minimal per mockup.
-        }
-        .help("v\(appVersion)")
-        // Reserve room for traffic-light buttons (window controls overlap left edge).
-        .padding(.leading, 60)
+        Color.clear.frame(width: 60, height: 1)
     }
 
     private var tabSwitcher: some View {
@@ -150,7 +139,9 @@ struct TitleBarView: View {
             .buttonStyle(.plain)
             .focusEffectDisabled()
 
-            Button(action: onSettings) {
+            Button {
+                showAppInfo.toggle()
+            } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 13))
                     .foregroundStyle(Color.dsTextSecondary)
@@ -158,6 +149,9 @@ struct TitleBarView: View {
             }
             .buttonStyle(.plain)
             .focusEffectDisabled()
+            .popover(isPresented: $showAppInfo, arrowEdge: .top) {
+                AppInfoPopover(onDismiss: { showAppInfo = false })
+            }
         }
     }
 

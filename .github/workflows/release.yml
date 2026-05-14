@@ -72,13 +72,52 @@ jobs:
             ```
 
             ### Cập nhật
-            ```bash
-            brew update && brew upgrade hosven
-            ```
+            App tự kiểm tra cập nhật qua Sparkle. Lần đầu cài qua Homebrew, sau đó update in-app.
 
             Hoặc tải file ZIP/DMG bên dưới.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Sparkle appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "::warning::SPARKLE_PRIVATE_KEY not set, skipping appcast generation"
+            exit 0
+          fi
+          curl -fsSL -o /tmp/sparkle.tar.xz \
+            https://github.com/sparkle-project/Sparkle/releases/download/2.7.0/Sparkle-2.7.0.tar.xz
+          mkdir -p /tmp/sparkle && tar -xJf /tmp/sparkle.tar.xz -C /tmp/sparkle
+
+          mkdir -p release-staging
+          cp build/Build/Products/Release/Hosven-${{ github.ref_name }}.zip release-staging/
+          # Pull existing appcast so generate_appcast preserves historical entries
+          curl -fsSL https://twan-nguyen.github.io/hosven/appcast.xml \
+            -o release-staging/appcast.xml || true
+
+          echo "$SPARKLE_PRIVATE_KEY" > /tmp/sparkle-key
+          /tmp/sparkle/bin/generate_appcast \
+            --ed-key-file /tmp/sparkle-key \
+            --download-url-prefix "https://github.com/twan-nguyen/hosven/releases/download/${{ github.ref_name }}/" \
+            release-staging/
+          rm -f /tmp/sparkle-key
+
+          echo "--- appcast.xml ---"
+          cat release-staging/appcast.xml
+
+      - name: Publish appcast to gh-pages
+        if: env.SPARKLE_PRIVATE_KEY != ''
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./release-staging
+          keep_files: true
+          exclude_assets: '*.zip,*.dmg'
+          commit_message: "chore: publish appcast for ${{ github.ref_name }}"
 
       - name: Update Homebrew Tap
         env:

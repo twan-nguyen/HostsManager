@@ -5,6 +5,7 @@ struct HosvenApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var hostsManager = HostsFileManager()
     @State private var envManager = EnvFileManager()
+    @State private var autoUpdater = AutoUpdater()
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
 
     private var appVersion: String {
@@ -16,6 +17,7 @@ struct HosvenApp: App {
             MainWindowView()
                 .environment(hostsManager)
                 .environment(envManager)
+                .environment(autoUpdater)
                 .frame(minWidth: 880, minHeight: 540)
         }
         // .hiddenTitleBar collapses the native title bar so our custom TitleBarView

@@ -20,8 +20,7 @@ struct MainWindowView: View {
                 selectedTab: $selectedTab,
                 hostsCount: hostsManager.entries.count,
                 envCount: envEntryCount,
-                onSearch: { hostsManager.isSearchFocused = true },
-                onSettings: openSettings
+                onSearch: { hostsManager.isSearchFocused = true }
             )
 
             BreadcrumbView(
@@ -143,12 +142,6 @@ struct MainWindowView: View {
         switch selectedTab {
         case .hosts: hostsManager.applyChanges()
         case .env:   envManager.applyCurrentSelection()
-        }
-    }
-
-    private func openSettings() {
-        if #available(macOS 14, *) {
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         }
     }
 }
