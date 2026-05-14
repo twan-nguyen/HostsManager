@@ -96,14 +96,13 @@ jobs:
           curl -fsSL https://twan-nguyen.github.io/hosven/appcast.xml \
             -o release-staging/appcast.xml || true
 
-          # Strip any leading/trailing whitespace + newlines that GitHub Actions
-          # may inject around secret values — generate_appcast rejects non-base64.
-          printf '%s' "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' > /tmp/sparkle-key
-          /tmp/sparkle/bin/generate_appcast \
-            --ed-key-file /tmp/sparkle-key \
-            --download-url-prefix "https://github.com/twan-nguyen/hosven/releases/download/${{ github.ref_name }}/" \
-            release-staging/
-          rm -f /tmp/sparkle-key
+          # Use stdin per Sparkle docs (recommended over key file for CI).
+          # Strip any whitespace GitHub Actions may inject around the secret.
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | \
+            /tmp/sparkle/bin/generate_appcast \
+              --ed-key-file - \
+              --download-url-prefix "https://github.com/twan-nguyen/hosven/releases/download/${{ github.ref_name }}/" \
+              release-staging/
 
           echo "--- appcast.xml ---"
           cat release-staging/appcast.xml
