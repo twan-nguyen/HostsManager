@@ -2,25 +2,25 @@
 
 ## Tổng quan
 
-Devly được phân phối qua Homebrew Cask thông qua một tap riêng.
+Hosven được phân phối qua Homebrew Cask thông qua một tap riêng.
 
 ## Các bước phát hành
 
 ### 1. Tạo Homebrew Tap Repository
 
-Tạo repo trên GitHub tên `homebrew-devly`, copy thư mục `homebrew/` vào repo đó:
+Tạo repo trên GitHub tên `homebrew-hosven`, copy thư mục `homebrew/` vào repo đó:
 
 ```
-homebrew-devly/
+homebrew-hosven/
 ├── Casks/
-│   └── devly.rb
+│   └── hosven.rb
 └── .github/workflows/
     └── update-cask.yml
 ```
 
 ### 2. Cấu hình GitHub Secrets
 
-Trong repo chính (`Devly`), thêm secret:
+Trong repo chính (`Hosven`), thêm secret:
 - `TAP_REPO_TOKEN`: Personal Access Token có quyền `repo` để dispatch event sang tap repo
 
 ### 3. Phát hành phiên bản mới
@@ -42,7 +42,7 @@ Script sẽ:
 
 ### 5. Merge PR trong tap repo
 
-Review và merge PR tự động trong repo `homebrew-devly`.
+Review và merge PR tự động trong repo `homebrew-hosven`.
 
 ## Cài đặt thủ công (không qua CI)
 

@@ -2,4 +2,4 @@
 
 ## v1.0.0 — 2026-05-08
 
-Initial release of Devly.
+Initial release of Hosven (renamed from Devly).

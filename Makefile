@@ -1,4 +1,4 @@
-APP_NAME = Devly
+APP_NAME = Hosven
 VERSION = 1.0.0
 BUILD_DIR = build
 RELEASE_DIR = release

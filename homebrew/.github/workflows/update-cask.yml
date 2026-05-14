@@ -15,12 +15,12 @@ jobs:
           VERSION="${{ github.event.client_payload.version }}"
           SHA256="${{ github.event.client_payload.sha256 }}"
           VERSION_CLEAN="${VERSION#v}"
-          sed -i "s/version \".*\"/version \"${VERSION_CLEAN}\"/" Casks/devly.rb
-          sed -i "s/sha256 \".*\"/sha256 \"${SHA256}\"/" Casks/devly.rb
+          sed -i "s/version \".*\"/version \"${VERSION_CLEAN}\"/" Casks/hosven.rb
+          sed -i "s/sha256 \".*\"/sha256 \"${SHA256}\"/" Casks/hosven.rb
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
-          title: "Update Devly to ${{ github.event.client_payload.version }}"
-          commit-message: "chore: update devly to ${{ github.event.client_payload.version }}"
+          title: "Update Hosven to ${{ github.event.client_payload.version }}"
+          commit-message: "chore: update hosven to ${{ github.event.client_payload.version }}"
           branch: "update-${{ github.event.client_payload.version }}"

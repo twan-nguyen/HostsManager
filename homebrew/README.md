@@ -1,21 +1,21 @@
-# Homebrew Tap: Devly
+# Homebrew Tap: Hosven
 
 ## Cài đặt
 
 ```bash
-brew tap twan-nguyen/devly
-brew install devly
+brew tap twan-nguyen/hosven
+brew install hosven
 ```
 
 ## Cập nhật
 
 ```bash
-brew upgrade devly
+brew upgrade hosven
 ```
 
 ## Gỡ cài đặt
 
 ```bash
-brew uninstall devly
-brew untap twan-nguyen/devly
+brew uninstall hosven
+brew untap twan-nguyen/hosven
 ```

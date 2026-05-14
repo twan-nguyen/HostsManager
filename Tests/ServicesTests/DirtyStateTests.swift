@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Devly
+@testable import Hosven
 
 @Suite("Dirty state derives from content, not setter calls")
 @MainActor

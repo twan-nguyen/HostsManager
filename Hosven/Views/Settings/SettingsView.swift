@@ -37,7 +37,7 @@ struct SettingsView: View {
             }
 
             Section("Hệ thống") {
-                Text("Devly v\(appVersion)")
+                Text("Hosven v\(appVersion)")
                     .font(.dsCaption)
                     .foregroundStyle(.secondary)
             }

@@ -9,7 +9,7 @@ fi
 
 VERSION=$1
 
-echo "=== Releasing Devly v${VERSION} ==="
+echo "=== Releasing Hosven v${VERSION} ==="
 
 # Update version in project.yml
 sed -i '' "s/MARKETING_VERSION: .*/MARKETING_VERSION: \"${VERSION}\"/" project.yml

@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Devly
+@testable import Hosven
 
 @Suite("HostsFileWatcher")
 struct HostsFileWatcherTests {

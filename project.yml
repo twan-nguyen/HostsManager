@@ -1,6 +1,6 @@
-name: Devly
+name: Hosven
 options:
-  bundleIdPrefix: com.devly
+  bundleIdPrefix: com.twannguyen
   deploymentTarget:
     macOS: "15.0"
   xcodeVersion: "15.0"
@@ -15,55 +15,55 @@ settings:
     CODE_SIGN_STYLE: Manual
     SWIFT_VERSION: "5.9"
 targets:
-  Devly:
+  Hosven:
     type: application
     platform: macOS
     sources:
-      - Devly
+      - Hosven
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_LSUIElement: NO
-        INFOPLIST_KEY_CFBundleDisplayName: Devly
-        CODE_SIGN_ENTITLEMENTS: Devly/Devly.entitlements
-        PRODUCT_BUNDLE_IDENTIFIER: com.devly.app
-        SWIFT_OBJC_BRIDGING_HEADER: Devly/Devly-Bridging-Header.h
+        INFOPLIST_KEY_CFBundleDisplayName: Hosven
+        CODE_SIGN_ENTITLEMENTS: Hosven/Hosven.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.twannguyen.hosven
+        SWIFT_OBJC_BRIDGING_HEADER: Hosven/Hosven-Bridging-Header.h
     dependencies:
       - sdk: Security.framework
-  DevlyTests:
+  HosvenTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - Tests
     dependencies:
-      - target: Devly
+      - target: Hosven
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: com.devly.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.twannguyen.hosven.tests
         BUNDLE_LOADER: "$(TEST_HOST)"
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Devly.app/Contents/MacOS/Devly"
-  DevlyUITests:
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Hosven.app/Contents/MacOS/Hosven"
+  HosvenUITests:
     type: bundle.ui-testing
     platform: macOS
     sources:
       - UITests
     dependencies:
-      - target: Devly
+      - target: Hosven
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: com.devly.app.uitests
-        TEST_TARGET_NAME: Devly
+        PRODUCT_BUNDLE_IDENTIFIER: com.twannguyen.hosven.uitests
+        TEST_TARGET_NAME: Hosven
 schemes:
-  Devly:
+  Hosven:
     build:
       targets:
-        Devly: all
-        DevlyTests: [test]
-        DevlyUITests: [test]
+        Hosven: all
+        HosvenTests: [test]
+        HosvenUITests: [test]
     test:
       targets:
-        - DevlyTests
-        - DevlyUITests
+        - HosvenTests
+        - HosvenUITests
       gatherCoverageData: true

@@ -27,8 +27,8 @@ jobs:
 
       - name: Build Universal Binary
         run: |
-          xcodebuild -project Devly.xcodeproj \
-            -scheme Devly \
+          xcodebuild -project Hosven.xcodeproj \
+            -scheme Hosven \
             -configuration Release \
             -derivedDataPath build \
             ARCHS="arm64 x86_64" \
@@ -39,41 +39,41 @@ jobs:
       - name: Package ZIP
         run: |
           cd build/Build/Products/Release
-          zip -r Devly-${{ github.ref_name }}.zip Devly.app
+          zip -r Hosven-${{ github.ref_name }}.zip Hosven.app
 
       - name: Calculate SHA256
         id: sha
         run: |
-          SHA=$(shasum -a 256 build/Build/Products/Release/Devly-${{ github.ref_name }}.zip | awk '{print $1}')
+          SHA=$(shasum -a 256 build/Build/Products/Release/Hosven-${{ github.ref_name }}.zip | awk '{print $1}')
           echo "sha256=$SHA" >> $GITHUB_OUTPUT
 
       - name: Create DMG
         run: |
-          hdiutil create -volname "Devly" \
-            -srcfolder build/Build/Products/Release/Devly.app \
+          hdiutil create -volname "Hosven" \
+            -srcfolder build/Build/Products/Release/Hosven.app \
             -ov -format UDZO \
-            build/Devly-${{ github.ref_name }}.dmg
+            build/Hosven-${{ github.ref_name }}.dmg
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2.6.1
         with:
           files: |
-            build/Build/Products/Release/Devly-${{ github.ref_name }}.zip
-            build/Devly-${{ github.ref_name }}.dmg
+            build/Build/Products/Release/Hosven-${{ github.ref_name }}.zip
+            build/Hosven-${{ github.ref_name }}.dmg
           body: |
-            ## Devly ${{ github.ref_name }}
+            ## Hosven ${{ github.ref_name }}
 
             ### SHA256
             - ZIP: `${{ steps.sha.outputs.sha256 }}`
 
             ### Cài đặt
             ```bash
-            brew install twan-nguyen/devly/devly
+            brew install twan-nguyen/hosven/hosven
             ```
 
             ### Cập nhật
             ```bash
-            brew update && brew upgrade devly
+            brew update && brew upgrade hosven
             ```
 
             Hoặc tải file ZIP/DMG bên dưới.
@@ -94,16 +94,16 @@ jobs:
           fi
 
           rm -rf /tmp/homebrew-tap
-          git clone https://x-access-token:${TAP_REPO_TOKEN}@github.com/twan-nguyen/homebrew-devly.git /tmp/homebrew-tap
+          git clone https://x-access-token:${TAP_REPO_TOKEN}@github.com/twan-nguyen/homebrew-hosven.git /tmp/homebrew-tap
           cd /tmp/homebrew-tap
 
-          sed -i '' "s/version \".*\"/version \"${VERSION_CLEAN}\"/" Casks/devly.rb
-          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256}\"/" Casks/devly.rb
+          sed -i '' "s/version \".*\"/version \"${VERSION_CLEAN}\"/" Casks/hosven.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256}\"/" Casks/hosven.rb
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Casks/devly.rb
-          git commit -m "chore: update devly to v${VERSION_CLEAN}"
+          git add Casks/hosven.rb
+          git commit -m "chore: update hosven to v${VERSION_CLEAN}"
           git push origin main
 
           echo "✓ Homebrew tap updated to v${VERSION_CLEAN}"

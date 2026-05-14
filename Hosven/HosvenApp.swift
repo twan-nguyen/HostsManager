@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct DevlyApp: App {
+struct HosvenApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var hostsManager = HostsFileManager()
     @State private var envManager = EnvFileManager()

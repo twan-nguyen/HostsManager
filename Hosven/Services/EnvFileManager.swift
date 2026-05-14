@@ -26,7 +26,7 @@ final class EnvFileManager {
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first!
         return base
-            .appendingPathComponent("com.devly.app")
+            .appendingPathComponent("com.twannguyen.hosven")
             .appendingPathComponent("env-config.json")
     }
 

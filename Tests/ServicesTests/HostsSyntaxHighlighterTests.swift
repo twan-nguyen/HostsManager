@@ -1,6 +1,6 @@
 import Testing
 import AppKit
-@testable import Devly
+@testable import Hosven
 
 @Suite("HostsSyntaxHighlighter")
 struct HostsSyntaxHighlighterTests {

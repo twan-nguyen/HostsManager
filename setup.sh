@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== Devly Build Script ==="
+echo "=== Hosven Build Script ==="
 
 # Check dependencies
 if ! command -v xcodegen &> /dev/null; then
@@ -13,8 +13,8 @@ echo "1. Generating Xcode project..."
 xcodegen generate
 
 echo "2. Building universal binary..."
-xcodebuild -project Devly.xcodeproj \
-    -scheme Devly \
+xcodebuild -project Hosven.xcodeproj \
+    -scheme Hosven \
     -configuration Release \
     -derivedDataPath build \
     ARCHS="arm64 x86_64" \
@@ -24,7 +24,7 @@ xcodebuild -project Devly.xcodeproj \
 
 echo ""
 echo "=== Build complete! ==="
-echo "App: build/Build/Products/Release/Devly.app"
+echo "App: build/Build/Products/Release/Hosven.app"
 echo ""
-echo "To install: cp -R build/Build/Products/Release/Devly.app /Applications/"
+echo "To install: cp -R build/Build/Products/Release/Hosven.app /Applications/"
 echo "Or run: make install"

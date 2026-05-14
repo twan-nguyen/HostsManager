@@ -45,7 +45,7 @@ struct TitleBarView: View {
             Image(systemName: "server.rack")
                 .font(.system(size: 13))
                 .foregroundStyle(Color.dsTextSecondary)
-            Text("Devly")
+            Text("Hosven")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Color.dsTextPrimary)
             // Version visible only on hover via tooltip — keeps title bar minimal per mockup.

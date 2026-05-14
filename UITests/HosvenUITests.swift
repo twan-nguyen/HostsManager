@@ -9,7 +9,7 @@ import XCTest
 /// - These tests assume a fresh run with default profiles auto-created from the
 ///   user's real /etc/hosts. If `/etc/hosts` is empty of tag markers, sidebar
 ///   only has filters; profile-activation test will be skipped.
-final class DevlyUITests: XCTestCase {
+final class HosvenUITests: XCTestCase {
     var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -28,7 +28,7 @@ final class DevlyUITests: XCTestCase {
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 5))
         // TitleBar text proves shell rendered
-        XCTAssertTrue(app.staticTexts["Devly"].exists)
+        XCTAssertTrue(app.staticTexts["Hosven"].exists)
     }
 
     func test_tabSwitcher_switchesBetweenHostsAndEnv() {
@@ -56,7 +56,7 @@ final class DevlyUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
 
         // TitleBar still visible
-        XCTAssertTrue(app.staticTexts["Devly"].exists,
+        XCTAssertTrue(app.staticTexts["Hosven"].exists,
                       "TitleBar must persist after switching to Env")
         // Env-only sidebar header
         XCTAssertTrue(app.staticTexts["REPOS"].waitForExistence(timeout: 2),
@@ -73,7 +73,7 @@ final class DevlyUITests: XCTestCase {
             print("==DEBUG TREE AFTER FAILED HOSTS CLICK==\n\(app.debugDescription)")
         }
 
-        XCTAssertTrue(app.staticTexts["Devly"].exists,
+        XCTAssertTrue(app.staticTexts["Hosven"].exists,
                       "TitleBar must persist after switching back to Hosts")
         XCTAssertTrue(app.staticTexts["PROFILES"].waitForExistence(timeout: 2),
                       "After Hosts click, sidebar should show PROFILES again")
@@ -105,7 +105,7 @@ final class DevlyUITests: XCTestCase {
         envTab.click()
         Thread.sleep(forTimeInterval: 0.6)
 
-        XCTAssertTrue(app.staticTexts["Devly"].exists,
+        XCTAssertTrue(app.staticTexts["Hosven"].exists,
                       "Custom TitleBarView text must remain")
 
         // No NSV in layout (replaced by HStack) → no auto-installed sidebar
