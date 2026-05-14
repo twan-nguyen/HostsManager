@@ -30,7 +30,7 @@ targets:
         INFOPLIST_KEY_LSUIElement: NO
         INFOPLIST_KEY_CFBundleDisplayName: Hosven
         INFOPLIST_KEY_SUFeedURL: https://twan-nguyen.github.io/hosven/appcast.xml
-        INFOPLIST_KEY_SUPublicEDKey: ytx4yLePAzFaBqkKVBJR4eqazVjEaug7OOmDouro7As=
+        INFOPLIST_KEY_SUPublicEDKey: +Zr28RWwnEsDnMCS7kkbbyd2lg7iCvYgmdUt6VNBTrY=
         INFOPLIST_KEY_SUEnableAutomaticChecks: YES
         INFOPLIST_KEY_SUScheduledCheckInterval: 86400
         CODE_SIGN_ENTITLEMENTS: Hosven/Hosven.entitlements
