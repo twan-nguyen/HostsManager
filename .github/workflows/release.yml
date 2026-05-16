@@ -161,3 +161,32 @@ jobs:
           git push origin main
 
           echo "✓ Homebrew tap updated to v${VERSION_CLEAN}"
+
+      - name: Notify Telegram
+        # Always runs (success or failure) so we get build status either way.
+        # Silently skips if either secret is unset.
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.TAG }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::notice::Telegram secrets not set, skipping notification"
+            exit 0
+          fi
+          case "$STATUS" in
+            success) EMOJI="✅" ;;
+            failure) EMOJI="❌" ;;
+            cancelled) EMOJI="⚠️" ;;
+            *) EMOJI="ℹ️" ;;
+          esac
+          TEXT="${EMOJI} *Hosven ${TAG}* build *${STATUS}*"$'\n\n'"[Release](${RELEASE_URL}) · [Workflow run](${RUN_URL})"
+          curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${TEXT}" \
+            --data-urlencode "parse_mode=Markdown" \
+            --data-urlencode "disable_web_page_preview=true" > /dev/null
+          echo "✓ Telegram notification sent"
