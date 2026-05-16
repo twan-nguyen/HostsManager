@@ -135,49 +135,63 @@ struct SidebarView: View {
         let isActive = hostsManager.activeProfileID == profile.id
         let count = hostsManager.tagEntryCount(name: profile.name)
 
-        Button {
-            if isActive {
-                hostsManager.switchProfile(to: nil)
-                selection = .filter(.all)
-            } else {
-                hostsManager.switchProfile(to: profile.id)
-                selection = .tag(profile.name)
-            }
-        } label: {
-            HStack(spacing: 8) {
-                StatusDot(color: .ds(profile.color), size: 8, glow: isActive)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(profile.name)
-                        .font(.system(size: 11.5, weight: isActive ? .medium : .regular))
-                        .foregroundStyle(Color.dsTextPrimary)
-                    Text("\(count) host\(count == 1 ? "" : "s")\(isActive ? " active" : "")")
-                        .font(.system(size: 9.5))
-                        .foregroundStyle(Color.dsTextTertiary)
-                }
-                Spacer(minLength: 0)
+        HStack(spacing: 6) {
+            profileCheckbox(profile, count: count)
+
+            Button {
                 if isActive {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color.ds(profile.color))
-                } else if let n = profile.shortcutNumber, n <= 9 {
-                    Text("⌘\(n)")
-                        .font(.dsMonoTiny)
-                        .foregroundStyle(Color.dsTextTertiary)
+                    hostsManager.switchProfile(to: nil)
+                    selection = .filter(.all)
+                } else {
+                    hostsManager.switchProfile(to: profile.id)
+                    selection = .tag(profile.name)
                 }
+            } label: {
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(profile.name)
+                            .font(.system(size: 11.5, weight: isActive ? .medium : .regular))
+                            .foregroundStyle(Color.dsTextPrimary)
+                        Text("\(count) host\(count == 1 ? "" : "s")\(isActive ? " active" : "")")
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(Color.dsTextTertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Group {
+                        if isActive {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Color.ds(profile.color))
+                        } else if let n = profile.shortcutNumber, n <= 9 {
+                            Text("⌘\(n)")
+                                .font(.dsMonoTiny)
+                                .foregroundStyle(Color.dsTextTertiary)
+                        }
+                    }
+                    // Push trailing indicator to bottom so the StatusDot overlay
+                    // at top-right has room and doesn't overlap.
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                }
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 7)
-            .background(profileRowBackground(profile, isActive: isActive))
-            .overlay(
-                RoundedRectangle(cornerRadius: 7)
-                    .strokeBorder(
-                        isActive ? Color.ds(profile.color).opacity(0.35) : Color.clear,
-                        lineWidth: 0.5
-                    )
-            )
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .background(profileRowBackground(profile, isActive: isActive))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(
+                    isActive ? Color.ds(profile.color).opacity(0.35) : Color.clear,
+                    lineWidth: 0.5
+                )
+        )
+        .overlay(alignment: .topTrailing) {
+            StatusDot(color: .ds(profile.color), size: 8, glow: isActive)
+                .padding(.top, 4)
+                .padding(.trailing, 4)
+                .allowsHitTesting(false)
+        }
         .animation(.dsSmooth, value: isActive)
         .accessibilityIdentifier("profile-row-\(profile.name)")
         .contextMenu {
@@ -188,6 +202,54 @@ struct SidebarView: View {
             Button(role: .destructive) {
                 deleteTarget = profile
             } label: { Label("Xoá profile", systemImage: "trash") }
+        }
+    }
+
+    /// Tri-state checkbox for bulk enable/disable of a profile's hosts.
+    /// allEnabled → filled check; mixed → filled dash; allDisabled → empty square.
+    /// Tapping routes through `toggleTag`: off when any are on, on when all are off
+    /// — acts as "quick disable" when hosts are active.
+    private func profileCheckbox(_ profile: Profile, count: Int) -> some View {
+        let state = hostsManager.tagState(name: profile.name)
+        return Button {
+            hostsManager.toggleTag(name: profile.name)
+        } label: {
+            Image(systemName: checkboxSymbol(state: state))
+                .font(.system(size: 13))
+                .foregroundStyle(checkboxColor(state: state, profile: profile))
+                .frame(width: 16, height: 16)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(count == 0)
+        .opacity(count == 0 ? 0.35 : 1)
+        .help(checkboxHelp(state: state, count: count))
+        .accessibilityLabel("Toggle hosts in profile \(profile.name)")
+        .accessibilityIdentifier("profile-toggle-\(profile.name)")
+    }
+
+    private func checkboxSymbol(state: HostsFileManager.TagState) -> String {
+        switch state {
+        case .allEnabled: return "checkmark.square.fill"
+        case .mixed: return "minus.square.fill"
+        case .allDisabled: return "square"
+        }
+    }
+
+    private func checkboxColor(state: HostsFileManager.TagState, profile: Profile) -> Color {
+        switch state {
+        case .allEnabled: return .ds(profile.color)
+        case .mixed: return Color.ds(profile.color).opacity(0.75)
+        case .allDisabled: return Color.dsTextTertiary
+        }
+    }
+
+    private func checkboxHelp(state: HostsFileManager.TagState, count: Int) -> String {
+        if count == 0 { return "Profile chưa có host" }
+        switch state {
+        case .allEnabled: return "Tắt tất cả \(count) host"
+        case .mixed: return "Tắt các host đang bật"
+        case .allDisabled: return "Bật tất cả \(count) host"
         }
     }
 
