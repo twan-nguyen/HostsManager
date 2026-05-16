@@ -48,7 +48,7 @@ git tag -a "v${VERSION}" -m "Release v${VERSION}"
 echo "✓ Created commit and tag v${VERSION}"
 
 # Push
-git push origin main --tags
+git push origin master --tags
 
 echo ""
 echo "=== Done! ==="
