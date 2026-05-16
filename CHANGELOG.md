@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.10](https://github.com/twan-nguyen/hosven/compare/v1.0.9...v1.0.10) (2026-05-16)
+
+
+### Bug Fixes
+
+* **ci:** escape changelog content without breaking bold tags, strip commit links ([bd1f781](https://github.com/twan-nguyen/hosven/commit/bd1f7813f269f410523927a19110579f0c76253f))
+* **ci:** use printf so notification message respects yaml block scalar ([8e57b08](https://github.com/twan-nguyen/hosven/commit/8e57b08ca774bbf87a9ea3666f297c57671dcc43))
+
 ## [1.0.9](https://github.com/twan-nguyen/hosven/compare/v1.0.8...v1.0.9) (2026-05-16)
 
 
