@@ -26,6 +26,9 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag || github.ref_name }}
+          # Full history + tags needed for changelog/diff computation in notify step.
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Record build start time
         id: start
@@ -167,8 +170,6 @@ jobs:
           echo "✓ Homebrew tap updated to v${VERSION_CLEAN}"
 
       - name: Notify Telegram
-        # Always runs (success or failure) so we get build status either way.
-        # Silently skips if either secret is unset.
         if: always()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -177,6 +178,7 @@ jobs:
           REPO: ${{ github.repository }}
           SERVER: ${{ github.server_url }}
           RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
           SHA256: ${{ steps.sha.outputs.sha256 }}
           START_TS: ${{ steps.start.outputs.ts }}
           ACTOR: ${{ github.actor }}
@@ -187,12 +189,16 @@ jobs:
             exit 0
           fi
 
+          # ----- HTML escape helper for user-supplied content -----
+          esc() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+
           # ----- Status label -----
+          STATUS_UP=$(echo "$STATUS" | tr '[:lower:]' '[:upper:]')
           case "$STATUS" in
-            success)   EMOJI="✅"; TITLE="Build thành công" ;;
-            failure)   EMOJI="❌"; TITLE="Build thất bại" ;;
-            cancelled) EMOJI="⚠️"; TITLE="Build bị huỷ" ;;
-            *)         EMOJI="ℹ️"; TITLE="Build $STATUS" ;;
+            success)   EMOJI="🚀" ;;
+            failure)   EMOJI="🔥" ;;
+            cancelled) EMOJI="⚠️" ;;
+            *)         EMOJI="ℹ️" ;;
           esac
 
           # ----- Duration -----
@@ -203,7 +209,7 @@ jobs:
             DURATION="—"
           fi
 
-          # ----- Artifact sizes (may not exist on early failure) -----
+          # ----- Artifact sizes -----
           ZIP_PATH="build/Build/Products/Release/Hosven-${TAG}.zip"
           DMG_PATH="build/Hosven-${TAG}.dmg"
           ZIP_SIZE=$( [ -f "$ZIP_PATH" ] && du -h "$ZIP_PATH" | awk '{print $1}' || echo "—" )
@@ -212,57 +218,60 @@ jobs:
           # ----- Short SHA -----
           SHA_SHORT=$( [ -n "$SHA256" ] && echo "${SHA256:0:12}…" || echo "—" )
 
-          # ----- Changelog excerpt from CHANGELOG.md (success only) -----
-          # Pipeline: extract section → strip release-please commit links →
-          # HTML-escape user content → restore awk's bold sentinels as <b> tags.
-          # Sentinels avoid double-escaping the bold tags we generate ourselves.
-          CHANGES_BLOCK=""
-          if [ -f CHANGELOG.md ] && [ "$STATUS" = "success" ]; then
-            VERSION_CLEAN="${TAG#v}"
-            CHANGES=$(awk -v ver="$VERSION_CLEAN" '
-              $0 ~ "^## \\[?" ver "\\]?" { flag=1; next }
-              flag && /^## / { exit }
-              flag && /^### / { sub(/^### /, ""); printf "\n[[B]]%s[[/B]]\n", $0; next }
-              flag && /^[*\-] / { sub(/^[*\-] +/, "• "); print }
-            ' CHANGELOG.md \
-              | sed -E 's/ ?\(\[[a-f0-9]+\]\(https:[^)]*\)\)//g' \
-              | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
-              | sed -e 's|\[\[B\]\]|<b>|g' -e 's|\[\[/B\]\]|</b>|g' \
-              | head -c 2500)
-            if [ -n "$CHANGES" ]; then
-              CHANGES_BLOCK=$'\n\n📝 <b>Thay đổi</b>'"$CHANGES"
+          # ----- Git context for the tagged commit -----
+          COMMIT_SHA=$(git rev-parse HEAD)
+          COMMIT_SHORT="${COMMIT_SHA:0:7}"
+          COMMIT_MSG=$(git log -1 --pretty=%s | esc)
+          COMMITTER=$(git log -1 --pretty='%an' | esc)
+          COMMIT_TIME=$(TZ='Asia/Saigon' date -j -f '%s' "$(git log -1 --pretty=%ct)" '+%Y-%m-%d %H:%M:%S %z' 2>/dev/null \
+                          || git log -1 --pretty='%ci')
+
+          # ----- Changed files (vs previous tag) -----
+          PREV_TAG=$(git describe --tags --abbrev=0 "HEAD^" 2>/dev/null || true)
+          FILES_BLOCK=""
+          if [ -n "$PREV_TAG" ]; then
+            FILES_ALL=$(git diff --name-only "${PREV_TAG}..HEAD")
+            FILES_COUNT=$(printf '%s\n' "$FILES_ALL" | grep -c . || true)
+            FILES_TOP=$(printf '%s\n' "$FILES_ALL" | head -25 | esc)
+            if [ "$FILES_COUNT" -gt 25 ]; then
+              FILES_TOP="${FILES_TOP}"$'\n'"… còn $((FILES_COUNT - 25)) file khác"
+            fi
+            if [ -n "$FILES_TOP" ]; then
+              FILES_BLOCK=$'\n\n<b>Changed Files</b> ('"${FILES_COUNT}"$' file, so với '"${PREV_TAG}"$')\n<pre>'"${FILES_TOP}"$'</pre>'
             fi
           fi
 
           # ----- URLs -----
-          RUN_URL="${SERVER}/${REPO}/actions/runs/${RUN_ID}"
-          RELEASE_URL="${SERVER}/${REPO}/releases/tag/${TAG}"
-          DOWNLOAD_DMG="${SERVER}/${REPO}/releases/download/${TAG}/Hosven-${TAG}.dmg"
-          COMMIT_URL="${SERVER}/${REPO}/commit/${GITHUB_SHA}"
-          COMMIT_SHORT="${GITHUB_SHA:0:7}"
+          REPO_URL="${SERVER}/${REPO}"
+          RUN_URL="${REPO_URL}/actions/runs/${RUN_ID}"
+          RELEASE_URL="${REPO_URL}/releases/tag/${TAG}"
+          DOWNLOAD_DMG="${REPO_URL}/releases/download/${TAG}/Hosven-${TAG}.dmg"
+          COMMIT_URL="${REPO_URL}/commit/${COMMIT_SHA}"
 
-          # ----- Compose message (printf so YAML block scalar stays intact) -----
+          # ----- Trailer changes from notify step into one block -----
           if [ "$STATUS" = "success" ]; then
-            TEXT=$(printf '%s\n' \
-              "${EMOJI} <b>Hosven ${TAG}</b>" \
-              "${TITLE}" \
-              "" \
-              "⏱ Build: <code>${DURATION}</code>" \
-              "📦 ZIP <code>${ZIP_SIZE}</code> · DMG <code>${DMG_SIZE}</code>" \
-              "🔐 <code>${SHA_SHORT}</code>" \
-              "👤 ${ACTOR} · <a href=\"${COMMIT_URL}\">${COMMIT_SHORT}</a> · ${EVENT}${CHANGES_BLOCK}" \
-              "" \
-              "<a href=\"${RELEASE_URL}\">📥 Release</a> · <a href=\"${DOWNLOAD_DMG}\">Tải DMG</a> · <a href=\"${RUN_URL}\">Workflow</a>")
+            ARTIFACTS_LINE=$(printf 'ZIP %s · DMG %s · SHA %s' "$ZIP_SIZE" "$DMG_SIZE" "$SHA_SHORT")
+            BOTTOM_LINKS=$(printf '<a href="%s">📥 Release</a>  ·  <a href="%s">⬇️ Tải DMG</a>  ·  <a href="%s">⚙️ Workflow</a>' \
+                            "$RELEASE_URL" "$DOWNLOAD_DMG" "$RUN_URL")
           else
-            TEXT=$(printf '%s\n' \
-              "${EMOJI} <b>Hosven ${TAG}</b>" \
-              "${TITLE}" \
-              "" \
-              "⏱ Sau <code>${DURATION}</code>" \
-              "👤 ${ACTOR} · <a href=\"${COMMIT_URL}\">${COMMIT_SHORT}</a> · ${EVENT}" \
-              "" \
-              "<a href=\"${RUN_URL}\">🔍 Xem log workflow</a>")
+            ARTIFACTS_LINE="(không có artifact)"
+            BOTTOM_LINKS=$(printf '<a href="%s">🔍 Xem log workflow</a>' "$RUN_URL")
           fi
+
+          # ----- Compose -----
+          TEXT=$(printf '%s\n' \
+            "${EMOJI} <b>Project HOSVEN</b> build <b>${STATUS_UP}</b> #${RUN_NUMBER} ${EMOJI}" \
+            "" \
+            "<b>Repository:</b> ${REPO_URL}" \
+            "<b>Branch:</b> ${TAG}" \
+            "<b>Commit:</b> <a href=\"${COMMIT_URL}\">${COMMIT_SHORT}</a>" \
+            "<b>Committer:</b> ${COMMITTER} (@${ACTOR})" \
+            "<b>Message:</b> ${COMMIT_MSG}" \
+            "<b>Time:</b> ${COMMIT_TIME}" \
+            "<b>Duration:</b> ${DURATION}" \
+            "<b>Build ${STATUS}:</b> Hosven ${TAG} · ${ARTIFACTS_LINE}${FILES_BLOCK}" \
+            "" \
+            "${BOTTOM_LINKS}")
 
           # ----- Send -----
           HTTP=$(curl -sS -o /tmp/tg.json -w "%{http_code}" \
