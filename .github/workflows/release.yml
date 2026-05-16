@@ -4,6 +4,14 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual escape hatch: lets us rebuild an existing tag (e.g. when an earlier
+  # tag push was suppressed by GitHub's recursion guard).
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g. v1.0.7)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,8 +19,13 @@ permissions:
 jobs:
   build:
     runs-on: macos-15
+    env:
+      # Unified ref — either the tag that pushed, or the dispatch input.
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Setup Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
@@ -39,12 +52,12 @@ jobs:
       - name: Package ZIP
         run: |
           cd build/Build/Products/Release
-          zip -r Hosven-${{ github.ref_name }}.zip Hosven.app
+          zip -r Hosven-${{ env.TAG }}.zip Hosven.app
 
       - name: Calculate SHA256
         id: sha
         run: |
-          SHA=$(shasum -a 256 build/Build/Products/Release/Hosven-${{ github.ref_name }}.zip | awk '{print $1}')
+          SHA=$(shasum -a 256 build/Build/Products/Release/Hosven-${{ env.TAG }}.zip | awk '{print $1}')
           echo "sha256=$SHA" >> $GITHUB_OUTPUT
 
       - name: Create DMG
@@ -52,16 +65,16 @@ jobs:
           hdiutil create -volname "Hosven" \
             -srcfolder build/Build/Products/Release/Hosven.app \
             -ov -format UDZO \
-            build/Hosven-${{ github.ref_name }}.dmg
+            build/Hosven-${{ env.TAG }}.dmg
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2.6.1
         with:
           files: |
-            build/Build/Products/Release/Hosven-${{ github.ref_name }}.zip
-            build/Hosven-${{ github.ref_name }}.dmg
+            build/Build/Products/Release/Hosven-${{ env.TAG }}.zip
+            build/Hosven-${{ env.TAG }}.dmg
           body: |
-            ## Hosven ${{ github.ref_name }}
+            ## Hosven ${{ env.TAG }}
 
             ### SHA256
             - ZIP: `${{ steps.sha.outputs.sha256 }}`
@@ -91,7 +104,7 @@ jobs:
           mkdir -p /tmp/sparkle && tar -xJf /tmp/sparkle.tar.xz -C /tmp/sparkle
 
           mkdir -p release-staging
-          cp build/Build/Products/Release/Hosven-${{ github.ref_name }}.zip release-staging/
+          cp build/Build/Products/Release/Hosven-${{ env.TAG }}.zip release-staging/
           # Start fresh each release. Old appcast on gh-pages may contain stale
           # unsigned entries (from prior broken runs) that generate_appcast
           # would "update" rather than re-sign — leaving signatures empty.
@@ -101,7 +114,7 @@ jobs:
           printf '%s' "$SPARKLE_PRIVATE_KEY" | tr -d '\r\n\t ' | \
             /tmp/sparkle/bin/generate_appcast \
               --ed-key-file - \
-              --download-url-prefix "https://github.com/twan-nguyen/hosven/releases/download/${{ github.ref_name }}/" \
+              --download-url-prefix "https://github.com/twan-nguyen/hosven/releases/download/${{ env.TAG }}/" \
               release-staging/
 
           echo "--- appcast.xml ---"
@@ -118,13 +131,13 @@ jobs:
           publish_dir: ./release-staging
           keep_files: true
           exclude_assets: '*.zip,*.dmg'
-          commit_message: "chore: publish appcast for ${{ github.ref_name }}"
+          commit_message: "chore: publish appcast for ${{ env.TAG }}"
 
       - name: Update Homebrew Tap
         env:
           TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
         run: |
-          VERSION="${{ github.ref_name }}"
+          VERSION="${{ env.TAG }}"
           VERSION_CLEAN="${VERSION#v}"
           SHA256="${{ steps.sha.outputs.sha256 }}"
 
