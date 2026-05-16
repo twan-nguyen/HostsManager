@@ -5,89 +5,44 @@
 <h1 align="center">Hosven</h1>
 
 <p align="center">
-  Ứng dụng native macOS để quản lý file <code>/etc/hosts</code> và <code>.env</code> files của repo dev với giao diện thiết kế dành riêng cho developer.
+  Ứng dụng native macOS quản lý <code>/etc/hosts</code> và <code>.env</code> files cho developer.
 </p>
-
-## Screenshots
 
 <p align="center">
-  <img src="design/screenshots/01-hosts.png" width="720" alt="Hosts management with profile sidebar"/>
-  <br/>
-  <em>Profile-first sidebar · Hosts table với IP color tokens · StatusBar Apply button</em>
+  <img src="design/screenshots/01-hosts.png" width="720" alt="Hosven screenshot"/>
 </p>
 
+## Tính năng
 
-## Tính năng v2.x
-
-### v2.1 (mới nhất)
-- **⌘K Command Palette**: fuzzy search mở qua ⌘K — switch profile, jump tab, tìm trong Hosts/Env
-- **App icon mới**: 3 profile cards cascading (purple/green/amber)
-
-### v2.0 — Hosts management
-- Parse và edit `/etc/hosts` với syntax tag markers `## [tag:Name]`
-- **Profile system**: nhóm hosts theo profile (Release/Production/Master/...) với màu phân biệt
-- Bật/tắt entry với DSToggle 24×13 spring animation
-- IP color tokens: localhost xanh nhạt, remote xanh lục, blocking đỏ
-- Apply với sudo qua AppleScript, cache 5 phút trong session
-- Auto DNS flush sau khi áp dụng
-
-### Env file management (carry-over từ v1.7.7)
-- Quản lý nhiều repo, mỗi repo nhiều `.env` file
-- Profile env vars per repo: save/restore bộ env states
-- Raw editor mode cho file edit trực tiếp
-
-### UI/UX redesign v2
-- **Profile-first sidebar**: card gradient cho profile đang active, ⌘1-9 shortcut
-- **Custom window chrome**: hidden title bar, gradient TitleBar 44px overlap traffic lights
-- **Inline detail header**: title + count + search + view mode + actions
-- **StatusBar 28px**: file path + pending counter + Apply ⌘S gradient blue button
-- Dark mode primary với design tokens: Colors/Typography/Spacing/Radius
-
-## Yêu cầu
-
-- macOS 15.0 (Sequoia) trở lên — bump để dùng `onScrollPhaseChange` (perf scroll), `@Observable`, `NavigationSplitView` modern
-- Xcode 15+ (để build)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+- Quản lý `/etc/hosts` theo **profile** (Release / Production / ...) với màu phân biệt
+- Bật/tắt từng entry inline, apply 1 click (sudo cache 5 phút, tự flush DNS)
+- Quản lý nhiều `.env` file theo repo, snapshot/restore bộ env vars
+- **⌘K Command Palette**: fuzzy search profile, tab, entries
+- Dark mode, custom title bar, ⌘1–9 switch profile nhanh
 
 ## Cài đặt
-
-### Homebrew (khuyên dùng)
 
 ```bash
 brew tap twan-nguyen/hosven
 brew install hosven
-
-# Cập nhật lên phiên bản mới
-brew update && brew upgrade hosven
 ```
 
-### Build từ source
-
-```bash
-# Cách 1: Script tự động
-chmod +x setup.sh
-./setup.sh
-
-# Cách 2: Make
-make build
-make install
-
-# Cách 3: Xcode
-xcodegen generate
-open Hosven.xcodeproj
-# Nhấn Cmd+R để chạy
-```
+Cập nhật: `brew upgrade hosven`
 
 ## Sử dụng
 
-1. Mở app, danh sách entries từ `/etc/hosts` hiển thị tự động
-2. Click profile bên sidebar để filter hosts theo nhóm; click lần nữa hoặc ⌘0 để xem tất cả
-3. Dùng ⌘1, ⌘2, ⌘3... để switch profile nhanh (mapping theo `Profile.shortcutNumber`)
-4. Toggle bật/tắt entry inline
-5. Nhấn ⌘S (hoặc click "Áp dụng" ở StatusBar) để ghi thay đổi vào `/etc/hosts`
-6. Nhập mật khẩu admin khi được yêu cầu (cache 5 phút)
+1. Mở app — entries từ `/etc/hosts` load tự động
+2. Click profile sidebar để filter; ⌘0 xem tất cả; ⌘1–9 switch nhanh
+3. Toggle entry inline → ⌘S để apply (nhập mật khẩu admin lần đầu)
+4. ⌘K mở Command Palette, ⌘, mở Settings
 
-Settings (⌘,): chọn theme, quản lý profiles.
+## Build từ source
+
+Yêu cầu: macOS 15+, Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+
+```bash
+make build && make install
+```
 
 ## Giấy phép
 
