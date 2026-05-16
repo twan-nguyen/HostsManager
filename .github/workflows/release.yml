@@ -212,21 +212,23 @@ jobs:
           # ----- Short SHA -----
           SHA_SHORT=$( [ -n "$SHA256" ] && echo "${SHA256:0:12}…" || echo "—" )
 
-          # ----- HTML escape helper -----
-          esc() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
-
           # ----- Changelog excerpt from CHANGELOG.md (success only) -----
+          # Pipeline: extract section → strip release-please commit links →
+          # HTML-escape user content → restore awk's bold sentinels as <b> tags.
+          # Sentinels avoid double-escaping the bold tags we generate ourselves.
           CHANGES_BLOCK=""
           if [ -f CHANGELOG.md ] && [ "$STATUS" = "success" ]; then
             VERSION_CLEAN="${TAG#v}"
-            # Pull lines from "## [VERSION]" up to the next "## " heading,
-            # convert "### Heading" → bold, bullets → "• ", drop the rest.
             CHANGES=$(awk -v ver="$VERSION_CLEAN" '
               $0 ~ "^## \\[?" ver "\\]?" { flag=1; next }
               flag && /^## / { exit }
-              flag && /^### / { sub(/^### /, ""); printf "\n<b>%s</b>\n", $0; next }
+              flag && /^### / { sub(/^### /, ""); printf "\n[[B]]%s[[/B]]\n", $0; next }
               flag && /^[*\-] / { sub(/^[*\-] +/, "• "); print }
-            ' CHANGELOG.md | esc | head -c 2500)
+            ' CHANGELOG.md \
+              | sed -E 's/ ?\(\[[a-f0-9]+\]\(https:[^)]*\)\)//g' \
+              | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+              | sed -e 's|\[\[B\]\]|<b>|g' -e 's|\[\[/B\]\]|</b>|g' \
+              | head -c 2500)
             if [ -n "$CHANGES" ]; then
               CHANGES_BLOCK=$'\n\n📝 <b>Thay đổi</b>'"$CHANGES"
             fi
