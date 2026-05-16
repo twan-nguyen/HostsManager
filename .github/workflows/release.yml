@@ -239,25 +239,27 @@ jobs:
           COMMIT_URL="${SERVER}/${REPO}/commit/${GITHUB_SHA}"
           COMMIT_SHORT="${GITHUB_SHA:0:7}"
 
-          # ----- Compose message -----
+          # ----- Compose message (printf so YAML block scalar stays intact) -----
           if [ "$STATUS" = "success" ]; then
-            TEXT="${EMOJI} <b>Hosven ${TAG}</b>
-${TITLE}
-
-⏱ Build: <code>${DURATION}</code>
-📦 ZIP <code>${ZIP_SIZE}</code> · DMG <code>${DMG_SIZE}</code>
-🔐 <code>${SHA_SHORT}</code>
-👤 ${ACTOR} · <a href=\"${COMMIT_URL}\">${COMMIT_SHORT}</a> · ${EVENT}${CHANGES_BLOCK}
-
-<a href=\"${RELEASE_URL}\">📥 Release</a> · <a href=\"${DOWNLOAD_DMG}\">Tải DMG</a> · <a href=\"${RUN_URL}\">Workflow</a>"
+            TEXT=$(printf '%s\n' \
+              "${EMOJI} <b>Hosven ${TAG}</b>" \
+              "${TITLE}" \
+              "" \
+              "⏱ Build: <code>${DURATION}</code>" \
+              "📦 ZIP <code>${ZIP_SIZE}</code> · DMG <code>${DMG_SIZE}</code>" \
+              "🔐 <code>${SHA_SHORT}</code>" \
+              "👤 ${ACTOR} · <a href=\"${COMMIT_URL}\">${COMMIT_SHORT}</a> · ${EVENT}${CHANGES_BLOCK}" \
+              "" \
+              "<a href=\"${RELEASE_URL}\">📥 Release</a> · <a href=\"${DOWNLOAD_DMG}\">Tải DMG</a> · <a href=\"${RUN_URL}\">Workflow</a>")
           else
-            TEXT="${EMOJI} <b>Hosven ${TAG}</b>
-${TITLE}
-
-⏱ Sau <code>${DURATION}</code>
-👤 ${ACTOR} · <a href=\"${COMMIT_URL}\">${COMMIT_SHORT}</a> · ${EVENT}
-
-<a href=\"${RUN_URL}\">🔍 Xem log workflow</a>"
+            TEXT=$(printf '%s\n' \
+              "${EMOJI} <b>Hosven ${TAG}</b>" \
+              "${TITLE}" \
+              "" \
+              "⏱ Sau <code>${DURATION}</code>" \
+              "👤 ${ACTOR} · <a href=\"${COMMIT_URL}\">${COMMIT_SHORT}</a> · ${EVENT}" \
+              "" \
+              "<a href=\"${RUN_URL}\">🔍 Xem log workflow</a>")
           fi
 
           # ----- Send -----
