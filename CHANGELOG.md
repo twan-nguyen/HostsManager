@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.9](https://github.com/twan-nguyen/hosven/compare/v1.0.8...v1.0.9) (2026-05-16)
+
+
+### Bug Fixes
+
+* test full release pipeline with enhanced telegram notification ([f50a815](https://github.com/twan-nguyen/hosven/commit/f50a81568d1794c9e3b7fdaa25d76c0724c6d765))
+
 ## [1.0.8](https://github.com/twan-nguyen/hosven/compare/v1.0.7...v1.0.8) (2026-05-16)
 
 
