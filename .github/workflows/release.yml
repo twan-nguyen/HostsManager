@@ -27,6 +27,10 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref_name }}
 
+      - name: Record build start time
+        id: start
+        run: echo "ts=$(date +%s)" >> $GITHUB_OUTPUT
+
       - name: Setup Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -170,23 +174,102 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           STATUS: ${{ job.status }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.TAG }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+          RUN_ID: ${{ github.run_id }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+          START_TS: ${{ steps.start.outputs.ts }}
+          ACTOR: ${{ github.actor }}
+          EVENT: ${{ github.event_name }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
             echo "::notice::Telegram secrets not set, skipping notification"
             exit 0
           fi
+
+          # ----- Status label -----
           case "$STATUS" in
-            success) EMOJI="✅" ;;
-            failure) EMOJI="❌" ;;
-            cancelled) EMOJI="⚠️" ;;
-            *) EMOJI="ℹ️" ;;
+            success)   EMOJI="✅"; TITLE="Build thành công" ;;
+            failure)   EMOJI="❌"; TITLE="Build thất bại" ;;
+            cancelled) EMOJI="⚠️"; TITLE="Build bị huỷ" ;;
+            *)         EMOJI="ℹ️"; TITLE="Build $STATUS" ;;
           esac
-          TEXT="${EMOJI} *Hosven ${TAG}* build *${STATUS}*"$'\n\n'"[Release](${RELEASE_URL}) · [Workflow run](${RUN_URL})"
-          curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+
+          # ----- Duration -----
+          if [ -n "$START_TS" ]; then
+            ELAPSED=$(( $(date +%s) - START_TS ))
+            DURATION="$((ELAPSED / 60))m $((ELAPSED % 60))s"
+          else
+            DURATION="—"
+          fi
+
+          # ----- Artifact sizes (may not exist on early failure) -----
+          ZIP_PATH="build/Build/Products/Release/Hosven-${TAG}.zip"
+          DMG_PATH="build/Hosven-${TAG}.dmg"
+          ZIP_SIZE=$( [ -f "$ZIP_PATH" ] && du -h "$ZIP_PATH" | awk '{print $1}' || echo "—" )
+          DMG_SIZE=$( [ -f "$DMG_PATH" ] && du -h "$DMG_PATH" | awk '{print $1}' || echo "—" )
+
+          # ----- Short SHA -----
+          SHA_SHORT=$( [ -n "$SHA256" ] && echo "${SHA256:0:12}…" || echo "—" )
+
+          # ----- HTML escape helper -----
+          esc() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+
+          # ----- Changelog excerpt from CHANGELOG.md (success only) -----
+          CHANGES_BLOCK=""
+          if [ -f CHANGELOG.md ] && [ "$STATUS" = "success" ]; then
+            VERSION_CLEAN="${TAG#v}"
+            # Pull lines from "## [VERSION]" up to the next "## " heading,
+            # convert "### Heading" → bold, bullets → "• ", drop the rest.
+            CHANGES=$(awk -v ver="$VERSION_CLEAN" '
+              $0 ~ "^## \\[?" ver "\\]?" { flag=1; next }
+              flag && /^## / { exit }
+              flag && /^### / { sub(/^### /, ""); printf "\n<b>%s</b>\n", $0; next }
+              flag && /^[*\-] / { sub(/^[*\-] +/, "• "); print }
+            ' CHANGELOG.md | esc | head -c 2500)
+            if [ -n "$CHANGES" ]; then
+              CHANGES_BLOCK=$'\n\n📝 <b>Thay đổi</b>'"$CHANGES"
+            fi
+          fi
+
+          # ----- URLs -----
+          RUN_URL="${SERVER}/${REPO}/actions/runs/${RUN_ID}"
+          RELEASE_URL="${SERVER}/${REPO}/releases/tag/${TAG}"
+          DOWNLOAD_DMG="${SERVER}/${REPO}/releases/download/${TAG}/Hosven-${TAG}.dmg"
+          COMMIT_URL="${SERVER}/${REPO}/commit/${GITHUB_SHA}"
+          COMMIT_SHORT="${GITHUB_SHA:0:7}"
+
+          # ----- Compose message -----
+          if [ "$STATUS" = "success" ]; then
+            TEXT="${EMOJI} <b>Hosven ${TAG}</b>
+${TITLE}
+
+⏱ Build: <code>${DURATION}</code>
+📦 ZIP <code>${ZIP_SIZE}</code> · DMG <code>${DMG_SIZE}</code>
+🔐 <code>${SHA_SHORT}</code>
+👤 ${ACTOR} · <a href=\"${COMMIT_URL}\">${COMMIT_SHORT}</a> · ${EVENT}${CHANGES_BLOCK}
+
+<a href=\"${RELEASE_URL}\">📥 Release</a> · <a href=\"${DOWNLOAD_DMG}\">Tải DMG</a> · <a href=\"${RUN_URL}\">Workflow</a>"
+          else
+            TEXT="${EMOJI} <b>Hosven ${TAG}</b>
+${TITLE}
+
+⏱ Sau <code>${DURATION}</code>
+👤 ${ACTOR} · <a href=\"${COMMIT_URL}\">${COMMIT_SHORT}</a> · ${EVENT}
+
+<a href=\"${RUN_URL}\">🔍 Xem log workflow</a>"
+          fi
+
+          # ----- Send -----
+          HTTP=$(curl -sS -o /tmp/tg.json -w "%{http_code}" \
+            -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
             --data-urlencode "text=${TEXT}" \
-            --data-urlencode "parse_mode=Markdown" \
-            --data-urlencode "disable_web_page_preview=true" > /dev/null
-          echo "✓ Telegram notification sent"
+            --data-urlencode "parse_mode=HTML" \
+            --data-urlencode "disable_web_page_preview=true")
+          if [ "$HTTP" = "200" ]; then
+            echo "✓ Telegram notification sent"
+          else
+            echo "::warning::Telegram returned HTTP $HTTP"
+            cat /tmp/tg.json
+          fi
