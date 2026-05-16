@@ -1,5 +1,7 @@
 APP_NAME = Hosven
+# x-release-please-start-version
 VERSION = 1.0.6
+# x-release-please-end
 BUILD_DIR = build
 RELEASE_DIR = release
 ARCHIVE_PATH = $(BUILD_DIR)/$(APP_NAME).xcarchive
